@@ -10,7 +10,6 @@ library StrategyErrors {
     error NotOwner(); // 0x30cd7471
     error NotVault(); // 0x62df0545
     error NotKeeper(); // 0xf512b278
-    error RewardsTokenMax(); // 0x8f24ac29
     error Stopped(); // 0x7acc84e3
     error SamePid(); // 0x4eb5bc6d
     error BaseAsset(); // 0xaeca768b
@@ -72,7 +71,7 @@ abstract contract BaseStrategy is IStrategy {
 
     /// @notice Get strategies current assets
     function estimatedTotalAssets() external view virtual returns (uint256) {
-        (uint256 _assets, , ) = _estimatedTotalAssets(true);
+        (uint256 _assets, , ) = _estimatedTotalAssets();
         return _assets;
     }
 
@@ -90,7 +89,7 @@ abstract contract BaseStrategy is IStrategy {
         if (timeSinceLastHarvest > MAX_REPORT_DELAY) return true;
 
         // Check for profits and losses
-        (uint256 assets, , ) = _estimatedTotalAssets(true);
+        (uint256 assets, , ) = _estimatedTotalAssets();
         uint256 debt = totalDebt;
         (uint256 excessDebt, ) = _gVault.excessDebt(address(this));
         uint256 profit;
@@ -167,11 +166,10 @@ abstract contract BaseStrategy is IStrategy {
         uint256 _amount
     ) external virtual returns (uint256 withdrawnAssets, uint256 loss) {
         if (msg.sender != address(_gVault)) revert StrategyErrors.NotVault();
-        (uint256 assets, uint256 balance, ) = _estimatedTotalAssets(false);
+        (uint256 assets, uint256 balance, ) = _estimatedTotalAssets();
         uint256 debt = _gVault.getStrategyDebt();
         // not enough assets to withdraw
         if (_amount >= assets && _amount == debt) {
-            balance = _sellAllRewards();
             balance += _divestAll(false);
             if (_amount > balance) {
                 loss = _amount - balance;
@@ -210,7 +208,6 @@ abstract contract BaseStrategy is IStrategy {
     ///     any gains/losses from this action to the vault
     function stopLoss() external virtual returns (bool) {
         if (!keepers[msg.sender]) revert StrategyErrors.NotKeeper();
-        if (stopLossAttempts == 0) _sellAllRewards();
         if (_divestAll(true) == 0) {
             stopLossAttempts += 1;
             return false;
@@ -261,23 +258,11 @@ abstract contract BaseStrategy is IStrategy {
     function _divestAll(bool _slippage) internal virtual returns (uint256);
 
     /// @notice Internal call of function above
-    /// @param _rewards include rewards in return
-    function _estimatedTotalAssets(
-        bool _rewards
-    ) internal view virtual returns (uint256, uint256, uint256);
-
-    /// @notice Claim and sell off all reward tokens for underlying asset
-    function _sellAllRewards() internal virtual returns (uint256);
-
-    /// @notice Sell available reward tokens for underlying asset
-    /// @return Contracts total amount of base assets
-    function _sellRewards() internal virtual returns (uint256);
-
-    /// @notice Sell additional rewards
-    /// @param _number_of_rewards number of reward tokens
-    function _sellAdditionalRewards(
-        uint256 _number_of_rewards
-    ) internal virtual returns (uint256);
+    function _estimatedTotalAssets()
+        internal
+        view
+        virtual
+        returns (uint256, uint256, uint256);
 
     /// @notice Calculated the strategies current PnL and attempts to pay back any excess
     ///     debt the strategy has to the vault.
