@@ -1,10 +1,10 @@
-name: test
-
 on:
   push:
     branches:
       - master
   pull_request:
+
+name: coverage
 
 env:
   FOUNDRY_PROFILE: ci
@@ -14,12 +14,18 @@ jobs:
     strategy:
       fail-fast: true
 
-    name: Foundry project
+    name: Forge Coverage
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
         with:
           submodules: recursive
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+
+      - name: Install hardhat & dependencies
+        run: npm install
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
@@ -30,9 +36,14 @@ jobs:
         run: |
           forge --version
           forge build --sizes
-        id: build
 
       - name: Run Forge tests
         run: |
-          forge test --fork-url ${{ secrets.ALCHEMY_RPC_URL }} -vvv
-        id: test
+          forge coverage --fork-url ${{ secrets.ALCHEMY_RPC_URL }} -vvv --report lcov
+
+      - uses: codecov/codecov-action@v3
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: lcov.info
+          fail_ci_if_error: false
+          verbose: true
