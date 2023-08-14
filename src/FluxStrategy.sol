@@ -3,10 +3,12 @@ pragma solidity ^0.8.13;
 
 import "./BaseStrategy.sol";
 import "./interfaces/IFluxToken.sol";
+import "../lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 
 library FluxIntegrationErrors {
     error MintFailed(); // 0x4e4f4e45
     error RedeemFailed(); // 0x52454445
+    error UknownAssetPair(); // 0x554150
 }
 
 //⠀⠀⠘⡀⠀⠀⠀⠀⠀How about⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡜⠀⠀⠀
@@ -43,17 +45,43 @@ library FluxIntegrationErrors {
 contract FluxStrategy is BaseStrategy {
     using Address for address;
 
-    enum Stablecoin {
-        DAI,
-        USDC,
-        USDT
-    }
+    /*//////////////////////////////////////////////////////////////
+                        Constants
+    //////////////////////////////////////////////////////////////*/
+    address public constant DAI = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
+    address public constant USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+    address public constant USDT = 0xdAC17F958D2ee523a2206206994597C13D831ec7;
 
-    IFLuxToken internal immutable _underlyingAsset;
+    address public constant F_USDC = 0x465a5a630482f3abD6d3b84B39B29b07214d19e5;
+    address public constant F_DAI = 0xe2bA8693cE7474900A045757fe0efCa900F6530b;
+    address public constant F_USDT = 0x81994b9607e06ab3d5cF3AffF9a67374f05F27d7;
 
-    constructor(address _vault, address _asset) BaseStrategy(_vault) {
+    IERC20 internal immutable _underlyingAsset;
+    IFLuxToken public immutable _fToken;
+
+    constructor(
+        address _vault,
+        address _asset,
+        address fToken
+    ) BaseStrategy(_vault) {
         require(_asset.isContract(), "Asset address is not a contract");
-        _underlyingAsset = IFLuxToken(_asset);
+        require(fToken.isContract(), "fToken address is not a contract");
+
+        // Check that asset and fToken are compatible
+        if (_asset == DAI) {
+            require(fToken == F_DAI, "!fDAI");
+        } else if (_asset == USDC) {
+            require(fToken == F_USDC, "!fUSDC");
+        } else if (_asset == USDT) {
+            require(fToken == F_USDT, "!fUSDT");
+        } else {
+            revert FluxIntegrationErrors.UknownAssetPair();
+        }
+
+        _underlyingAsset = IERC20(_asset);
+        _fToken = IFLuxToken(fToken);
+        _underlyingAsset.approve(address(_vault), type(uint256).max);
+        _underlyingAsset.approve(address(_fToken), type(uint256).max);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -217,7 +245,7 @@ contract FluxStrategy is BaseStrategy {
     /// @dev Reverts if minting function returns non-zero value
     /// @param _credit Amount available to invest
     function _invest(uint256 _credit) internal override returns (uint256) {
-        uint256 success = _underlyingAsset.mint(_credit);
+        uint256 success = _fToken.mint(_credit);
         if (success != 0) revert FluxIntegrationErrors.MintFailed();
         return _underlyingAsset.balanceOf(address(this));
     }
@@ -230,8 +258,8 @@ contract FluxStrategy is BaseStrategy {
         uint256 _debt,
         bool _slippage
     ) internal override returns (uint256) {
-        uint256 balance = _underlyingAsset.balanceOf(address(this));
-        uint256 success = _underlyingAsset.redeem(_debt);
+        uint256 balance = _fToken.balanceOf(address(this));
+        uint256 success = _fToken.redeem(_debt);
         if (success != 0) revert FluxIntegrationErrors.RedeemFailed();
         return balance - _underlyingAsset.balanceOf(address(this));
     }
@@ -240,8 +268,8 @@ contract FluxStrategy is BaseStrategy {
     /// @param _slippage ignore slippage as Flux is not AMM
     /// @return amount of assets that were divested
     function _divestAll(bool _slippage) internal override returns (uint256) {
-        uint256 balance = _underlyingAsset.balanceOf(address(this));
-        uint256 success = _underlyingAsset.redeem(balance);
+        uint256 balance = _fToken.balanceOf(address(this));
+        uint256 success = _fToken.redeem(balance);
         if (success != 0) revert FluxIntegrationErrors.RedeemFailed();
         return balance;
     }
