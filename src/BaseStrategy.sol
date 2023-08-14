@@ -5,6 +5,7 @@ import "./interfaces/IGVault.sol";
 import "./interfaces/IStrategy.sol";
 import "./interfaces/IStop.sol";
 import "../lib/openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
+import "../lib/openzeppelin-contracts/contracts/utils/Address.sol";
 
 library StrategyErrors {
     error NotOwner(); // 0x30cd7471
@@ -21,6 +22,7 @@ library StrategyErrors {
 }
 
 abstract contract BaseStrategy is IStrategy {
+    using Address for address;
     /*//////////////////////////////////////////////////////////////
                         CONSTANTS & IMMUTABLES
     //////////////////////////////////////////////////////////////*/
@@ -29,6 +31,9 @@ abstract contract BaseStrategy is IStrategy {
     uint256 internal constant DEFAULT_DECIMALS_FACTOR = 1E18;
 
     uint256 internal constant INVESTMENT_BUFFER = 10E18;
+
+    ERC20 internal immutable _underlyingAsset;
+    IGVault internal immutable _gVault;
     /*//////////////////////////////////////////////////////////////
                         STORAGE VARIABLES
     //////////////////////////////////////////////////////////////*/
@@ -39,9 +44,6 @@ abstract contract BaseStrategy is IStrategy {
 
     address public stopLossLogic;
     uint256 public stopLossAttempts;
-
-    ERC20 internal _underlyingAsset;
-    IGVault internal _gVault;
 
     uint256 internal profitThreshold = 20_000 * DEFAULT_DECIMALS_FACTOR;
     uint256 internal debtThreshold = 20_000 * DEFAULT_DECIMALS_FACTOR;
@@ -55,6 +57,13 @@ abstract contract BaseStrategy is IStrategy {
         uint256 debtRepayment,
         uint256 excessDebt
     );
+
+    constructor(address _vault, address _asset) {
+        require(_vault.isContract(), "Vault address is not a contract");
+        require(_asset.isContract(), "Asset address is not a contract");
+        _gVault = IGVault(_vault);
+        _underlyingAsset = ERC20(_asset);
+    }
 
     /*//////////////////////////////////////////////////////////////
                         VIEW FUNCTIONS
@@ -89,7 +98,7 @@ abstract contract BaseStrategy is IStrategy {
         if (timeSinceLastHarvest > MAX_REPORT_DELAY) return true;
 
         // Check for profits and losses
-        (uint256 assets, , ) = _estimatedTotalAssets();
+        (uint256 assets, , ) = _estimatedTotalAssets(); // Assets are in underlying asset(i.e. non 3CRV)
         uint256 debt = totalDebt;
         (uint256 excessDebt, ) = _gVault.excessDebt(address(this));
         uint256 profit;
@@ -258,6 +267,7 @@ abstract contract BaseStrategy is IStrategy {
     function _divestAll(bool _slippage) internal virtual returns (uint256);
 
     /// @notice Internal call of function above
+    /// @return assets total assets, balance strategy balance, rewardAmounts reward amounts
     function _estimatedTotalAssets()
         internal
         view
