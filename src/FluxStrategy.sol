@@ -3,6 +3,7 @@ pragma solidity ^0.8.13;
 
 import "./BaseStrategy.sol";
 import "./interfaces/IFluxToken.sol";
+import "./interfaces/ICurve3Pool.sol";
 import "../lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 
 library FluxIntegrationErrors {
@@ -56,32 +57,44 @@ contract FluxStrategy is BaseStrategy {
     address public constant F_DAI = 0xe2bA8693cE7474900A045757fe0efCa900F6530b;
     address public constant F_USDT = 0x81994b9607e06ab3d5cF3AffF9a67374f05F27d7;
 
+    uint256 public constant DECIMALS_FACTOR = 1e18;
+    uint256 internal constant PERCENTAGE_DECIMAL_FACTOR = 1E4;
+    ICurve3Pool public constant THREE_POOL =
+        ICurve3Pool(0xbEbc44782C7dB0a1A60Cb6fe97d0b483032FF1C7);
+    uint256 public constant DAI_INDEX = 0;
+    uint256 public constant USDC_INDEX = 1;
+    uint256 public constant USDT_INDEX = 2;
+    /*//////////////////////////////////////////////////////////////
+                        STORAGE VARIABLES
+    //////////////////////////////////////////////////////////////*/
     IERC20 internal immutable _underlyingAsset;
     IFLuxToken public immutable _fToken;
 
     constructor(
         address _vault,
         address _asset,
-        address fToken
+        address _fTokenAddr
     ) BaseStrategy(_vault) {
         require(_asset.isContract(), "Asset address is not a contract");
-        require(fToken.isContract(), "fToken address is not a contract");
+        require(_fTokenAddr.isContract(), "fToken address is not a contract");
 
         // Check that asset and fToken are compatible
         if (_asset == DAI) {
-            require(fToken == F_DAI, "!fDAI");
+            require(_fTokenAddr == F_DAI, "!fDAI");
         } else if (_asset == USDC) {
-            require(fToken == F_USDC, "!fUSDC");
+            require(_fTokenAddr == F_USDC, "!fUSDC");
         } else if (_asset == USDT) {
-            require(fToken == F_USDT, "!fUSDT");
+            require(_fTokenAddr == F_USDT, "!fUSDT");
         } else {
             revert FluxIntegrationErrors.UknownAssetPair();
         }
 
         _underlyingAsset = IERC20(_asset);
-        _fToken = IFLuxToken(fToken);
+        _fToken = IFLuxToken(_fTokenAddr);
         _underlyingAsset.approve(address(_vault), type(uint256).max);
         _underlyingAsset.approve(address(_fToken), type(uint256).max);
+
+        owner = msg.sender;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -102,7 +115,7 @@ contract FluxStrategy is BaseStrategy {
         if (timeSinceLastHarvest > MAX_REPORT_DELAY) return true;
 
         // Check for profits and losses
-        (uint256 assets, , ) = _estimatedTotalAssets(); // Assets are in underlying asset(i.e. non 3CRV)
+        (uint256 assets, , ) = _estimatedTotalAssets();
         uint256 debt = totalDebt;
         (uint256 excessDebt, ) = _gVault.excessDebt(address(this));
         uint256 profit;
@@ -241,6 +254,9 @@ contract FluxStrategy is BaseStrategy {
         return true;
     }
 
+    /*//////////////////////////////////////////////////////////////
+                        INTERNAL LOGIC
+    //////////////////////////////////////////////////////////////*/
     /// @notice Invest loose assets into current position and mint fTokens
     /// @dev Reverts if minting function returns non-zero value
     /// @param _credit Amount available to invest
@@ -282,13 +298,24 @@ contract FluxStrategy is BaseStrategy {
         override
         returns (uint256, uint256, uint256)
     {
-        uint256 _balance = _underlyingAsset.balanceOf(address(this));
-        uint256 fAssets;
-        // TODO: Implement fetching balance for Flux finance fTokens
-        //        uint256 fAssets = someFunc();
+        // Get balance of underlying asset
+        uint256 _balanceUnderlying = _underlyingAsset.balanceOf(address(this));
+        // Get fToken balance in fToken
+        uint256 _balanceUnderlyingPosition = (_fToken.balanceOf(address(this)) *
+            _fToken.exchangeRateStored()) / DECIMALS_FACTOR;
+        // Get underlying token index in 3pool
+        uint256 _index = _underlyingAsset == IERC20(DAI)
+            ? DAI_INDEX
+            : _underlyingAsset == IERC20(USDC)
+            ? USDC_INDEX
+            : USDT_INDEX;
+        // "Simulate" deposit into 3pool to get amount of 3crv we can potentially get
+        uint256[3] memory _amounts;
+        _amounts[_index] = _balanceUnderlying + _balanceUnderlyingPosition;
+        uint256 _estimated3Crv = THREE_POOL.calc_token_amount(_amounts, true);
         return (
-            _balance + fAssets,
-            _balance,
+            _estimated3Crv,
+            _estimated3Crv,
             // No rewards for this strategy
             0
         );

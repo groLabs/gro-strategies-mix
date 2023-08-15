@@ -39,7 +39,7 @@ abstract contract BaseStrategy is IStrategy {
     bool public stop;
 
     mapping(address => bool) public keepers;
-
+    address public owner; // contract owner
     address public stopLossLogic;
     uint256 public stopLossAttempts;
 
@@ -55,6 +55,8 @@ abstract contract BaseStrategy is IStrategy {
         uint256 debtRepayment,
         uint256 excessDebt
     );
+
+    event LogNewStopLoss(address newStopLoss);
 
     constructor(address _vault) {
         require(_vault.isContract(), "Vault address is not a contract");
@@ -88,6 +90,16 @@ abstract contract BaseStrategy is IStrategy {
     /// @dev This is a placeholder function to implement in case strategy invests in crv/cvx
     function getMetaPool() external view virtual returns (address) {
         return address(0);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                        EXTERNAL FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+    /// @notice Set new stop loss logic
+    function setStopLossLogic(address _newStopLoss) external {
+        if (msg.sender != owner) revert StrategyErrors.NotOwner();
+        stopLossLogic = _newStopLoss;
+        emit LogNewStopLoss(_newStopLoss);
     }
 
     /*//////////////////////////////////////////////////////////////
