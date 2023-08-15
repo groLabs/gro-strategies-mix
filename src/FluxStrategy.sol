@@ -94,7 +94,6 @@ contract FluxStrategy is BaseStrategy {
 
         _underlyingAsset = IERC20(_asset);
         _fToken = IFLuxToken(_fTokenAddr);
-        _underlyingAsset.approve(address(_vault), type(uint256).max);
         _underlyingAsset.approve(address(_fToken), type(uint256).max);
 
         owner = msg.sender;
@@ -327,7 +326,7 @@ contract FluxStrategy is BaseStrategy {
         );
         THREE_POOL.add_liquidity(_amounts, 0);
         // Return amount of 3crv that was divested
-        return THREE_CRV.balanceOf(address(this)) - threeCurveSnapshot;
+        return THREE_CRV.balanceOf(address(this));
     }
 
     /// @notice Strategy estimated total assets
