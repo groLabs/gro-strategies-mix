@@ -61,6 +61,8 @@ contract FluxStrategy is BaseStrategy {
     uint256 internal constant PERCENTAGE_DECIMAL_FACTOR = 1E4;
     ICurve3Pool public constant THREE_POOL =
         ICurve3Pool(0xbEbc44782C7dB0a1A60Cb6fe97d0b483032FF1C7);
+    IERC20 public constant THREE_CRV =
+        IERC20(0x6c3F90f043a72FA612cbac8115EE7e52BDe6E490);
     uint256 public constant DAI_INDEX = 0;
     uint256 public constant USDC_INDEX = 1;
     uint256 public constant USDT_INDEX = 2;
@@ -69,6 +71,7 @@ contract FluxStrategy is BaseStrategy {
     //////////////////////////////////////////////////////////////*/
     IERC20 internal immutable _underlyingAsset;
     IFLuxToken public immutable _fToken;
+    uint256 public immutable underlyingAssetIndex;
 
     constructor(
         address _vault,
@@ -95,6 +98,10 @@ contract FluxStrategy is BaseStrategy {
         _underlyingAsset.approve(address(_fToken), type(uint256).max);
 
         owner = msg.sender;
+
+        underlyingAssetIndex = _asset == DAI ? DAI_INDEX : _asset == USDC
+            ? USDC_INDEX
+            : USDT_INDEX;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -259,35 +266,68 @@ contract FluxStrategy is BaseStrategy {
     //////////////////////////////////////////////////////////////*/
     /// @notice Invest loose assets into current position and mint fTokens
     /// @dev Reverts if minting function returns non-zero value
-    /// @param _credit Amount available to invest
+    /// @param _credit Amount available to invest denominated in 3crv
     function _invest(uint256 _credit) internal override returns (uint256) {
-        uint256 success = _fToken.mint(_credit);
+        // First, we need to get back underlying asset from 3pool
+        THREE_POOL.remove_liquidity_one_coin(
+            _credit,
+            int128(int256(underlyingAssetIndex)),
+            0
+        );
+        uint256 underlyingBalance = _underlyingAsset.balanceOf(address(this));
+        // Now we can mint fToken
+        uint256 success = _fToken.mint(underlyingBalance);
         if (success != 0) revert FluxIntegrationErrors.MintFailed();
-        return _underlyingAsset.balanceOf(address(this));
+        return _credit;
     }
 
     /// @notice Attempts to remove assets from active position
-    /// @param _debt Amount to divest from position
+    /// @param _debt Amount to divest from position denominated in 3crv
     /// @param _slippage ignore slippage as Flux is not AMM
-    /// @return amount of assets that were divested
+    /// @return amount of assets denominated in 3crv that were divested
     function _divest(
         uint256 _debt,
         bool _slippage
     ) internal override returns (uint256) {
-        uint256 balance = _fToken.balanceOf(address(this));
-        uint256 success = _fToken.redeem(_debt);
+        uint256 balanceSnapshot = _underlyingAsset.balanceOf(address(this));
+        // Convert _debt denominated in 3crv to underlying token first, then to fToken
+        uint256 estimatedUnderlyingValue = THREE_POOL.calc_withdraw_one_coin(
+            _debt,
+            int128(int256(underlyingAssetIndex))
+        );
+        // Now convert to fToken
+        uint256 fTokensToRedeem = (estimatedUnderlyingValue * DECIMALS_FACTOR) /
+            _fToken.exchangeRateStored();
+        uint256 success = _fToken.redeem(fTokensToRedeem);
         if (success != 0) revert FluxIntegrationErrors.RedeemFailed();
-        return balance - _underlyingAsset.balanceOf(address(this));
+
+        uint256[3] memory _amounts;
+        // Now we need to swap redeemed underlying asset to 3crv
+        // Balance to withdraw is calculated as difference between current balance and balance snapshot
+        _amounts[underlyingAssetIndex] =
+            _underlyingAsset.balanceOf(address(this)) -
+            balanceSnapshot;
+        // Add liquidity to 3pool
+        THREE_POOL.add_liquidity(_amounts, 0);
+        return _debt;
     }
 
     /// @notice Remove all assets from active position
     /// @param _slippage ignore slippage as Flux is not AMM
-    /// @return amount of assets that were divested
+    /// @return amount of assets denominated in 3crv that were divested
     function _divestAll(bool _slippage) internal override returns (uint256) {
+        uint256 threeCurveSnapshot = THREE_CRV.balanceOf(address(this));
         uint256 balance = _fToken.balanceOf(address(this));
         uint256 success = _fToken.redeem(balance);
         if (success != 0) revert FluxIntegrationErrors.RedeemFailed();
-        return balance;
+        // Convert redeemed underlying asset to 3crv
+        uint256[3] memory _amounts;
+        _amounts[underlyingAssetIndex] = _underlyingAsset.balanceOf(
+            address(this)
+        );
+        THREE_POOL.add_liquidity(_amounts, 0);
+        // Return amount of 3crv that was divested
+        return THREE_CRV.balanceOf(address(this)) - threeCurveSnapshot;
     }
 
     /// @notice Strategy estimated total assets
@@ -303,15 +343,12 @@ contract FluxStrategy is BaseStrategy {
         // Get fToken balance in fToken
         uint256 _balanceUnderlyingPosition = (_fToken.balanceOf(address(this)) *
             _fToken.exchangeRateStored()) / DECIMALS_FACTOR;
-        // Get underlying token index in 3pool
-        uint256 _index = _underlyingAsset == IERC20(DAI)
-            ? DAI_INDEX
-            : _underlyingAsset == IERC20(USDC)
-            ? USDC_INDEX
-            : USDT_INDEX;
+
         // "Simulate" deposit into 3pool to get amount of 3crv we can potentially get
         uint256[3] memory _amounts;
-        _amounts[_index] = _balanceUnderlying + _balanceUnderlyingPosition;
+        _amounts[underlyingAssetIndex] =
+            _balanceUnderlying +
+            _balanceUnderlyingPosition;
         uint256 _estimated3Crv = THREE_POOL.calc_token_amount(_amounts, true);
         return (
             _estimated3Crv,

@@ -20,4 +20,9 @@ interface ICurve3Pool {
         uint256[3] calldata inAmounts,
         bool deposit
     ) external view returns (uint256);
+
+    function calc_withdraw_one_coin(
+        uint256 _tokenAmount,
+        int128 i
+    ) external view returns (uint256);
 }
