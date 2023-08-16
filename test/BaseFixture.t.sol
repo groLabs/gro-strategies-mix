@@ -3,6 +3,7 @@ pragma solidity ^0.8.13;
 import "forge-std/Test.sol";
 import "../src/external/GVault.sol";
 import {FluxStrategy} from "../src/FluxStrategy.sol";
+import "./utils.sol";
 
 contract BaseFixture is Test {
     ERC20 public constant THREE_POOL_TOKEN =
@@ -24,7 +25,10 @@ contract BaseFixture is Test {
     FluxStrategy public usdcStrategy;
     FluxStrategy public usdtStrategy;
 
+    Utils internal utils;
+
     function setUp() public virtual {
+        utils = new Utils();
         gVault = new GVault(THREE_POOL_TOKEN);
         daiStrategy = new FluxStrategy(address(gVault), DAI, F_DAI);
         usdcStrategy = new FluxStrategy(address(gVault), USDC, F_USDC);
