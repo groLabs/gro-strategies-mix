@@ -339,19 +339,27 @@ contract FluxStrategy is BaseStrategy {
     {
         // Get balance of underlying asset
         uint256 _balanceUnderlying = _underlyingAsset.balanceOf(address(this));
+
+        uint256[3] memory _amounts;
+        _amounts[underlyingAssetIndex] = _balanceUnderlying;
+        // Get balance of underlying asset ONLY in 3pool
+        uint256 _balanceUnderlyingIn3Pool = THREE_POOL.calc_token_amount(
+            _amounts,
+            true
+        );
+
         // Get fToken balance in fToken
         uint256 _balanceUnderlyingPosition = (_fToken.balanceOf(address(this)) *
             _fToken.exchangeRateStored()) / DECIMALS_FACTOR;
 
         // "Simulate" deposit into 3pool to get amount of 3crv we can potentially get
-        uint256[3] memory _amounts;
         _amounts[underlyingAssetIndex] =
             _balanceUnderlying +
             _balanceUnderlyingPosition;
         uint256 _estimated3Crv = THREE_POOL.calc_token_amount(_amounts, true);
         return (
             _estimated3Crv,
-            _estimated3Crv,
+            _balanceUnderlyingIn3Pool,
             // No rewards for this strategy
             0
         );
