@@ -4,7 +4,8 @@ pragma solidity ^0.8.13;
 import "./BaseStrategy.sol";
 import "./interfaces/IFluxToken.sol";
 import "./interfaces/ICurve3Pool.sol";
-import "../lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
+import {ERC20} from "../lib/solmate/src/tokens/ERC20.sol";
+import {SafeTransferLib} from "../lib/solmate/src/utils/SafeTransferLib.sol";
 
 library FluxIntegrationErrors {
     error MintFailed(); // 0x4e4f4e45
@@ -45,7 +46,7 @@ library FluxIntegrationErrors {
 //⣿⡿⠋⠁⠀⠀⢀⣀⣠⡴⣸⣿⣇⡄⠀⠀⠀⠀⢀⡿⠄⠙⠛⠀⣀⣠⣤⣤⠄⠀
 contract FluxStrategy is BaseStrategy {
     using Address for address;
-
+    using SafeTransferLib for ERC20;
     /*//////////////////////////////////////////////////////////////
                         Constants
     //////////////////////////////////////////////////////////////*/
@@ -61,15 +62,15 @@ contract FluxStrategy is BaseStrategy {
     uint256 internal constant PERCENTAGE_DECIMAL_FACTOR = 1E4;
     ICurve3Pool public constant THREE_POOL =
         ICurve3Pool(0xbEbc44782C7dB0a1A60Cb6fe97d0b483032FF1C7);
-    IERC20 public constant THREE_CRV =
-        IERC20(0x6c3F90f043a72FA612cbac8115EE7e52BDe6E490);
+    ERC20 public constant THREE_CRV =
+        ERC20(0x6c3F90f043a72FA612cbac8115EE7e52BDe6E490);
     uint256 public constant DAI_INDEX = 0;
     uint256 public constant USDC_INDEX = 1;
     uint256 public constant USDT_INDEX = 2;
     /*//////////////////////////////////////////////////////////////
                         STORAGE VARIABLES
     //////////////////////////////////////////////////////////////*/
-    IERC20 internal immutable _underlyingAsset;
+    ERC20 internal immutable _underlyingAsset;
     IFLuxToken public immutable _fToken;
     uint256 public immutable underlyingAssetIndex;
 
@@ -92,9 +93,12 @@ contract FluxStrategy is BaseStrategy {
             revert FluxIntegrationErrors.UknownAssetPair();
         }
 
-        _underlyingAsset = IERC20(_asset);
+        _underlyingAsset = ERC20(_asset);
         _fToken = IFLuxToken(_fTokenAddr);
-        _underlyingAsset.approve(address(_fToken), type(uint256).max);
+        // Approve underlying asset to be used by 3pool
+        _underlyingAsset.safeApprove(address(THREE_POOL), type(uint256).max);
+        // Approve underlying asset to be used by fToken contract
+        _underlyingAsset.safeApprove(address(_fToken), type(uint256).max);
 
         owner = msg.sender;
 

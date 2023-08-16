@@ -38,16 +38,16 @@ contract GVault is ERC4626, StrategyQueue, Owned, ReentrancyGuard {
     uint8 public constant N_COINS = 3;
     uint256 public constant DEFAULT_DECIMALS = 10_000;
     uint256 public constant DECIMALS = 18;
-    uint256 public constant DEFAULT_DECIMALS_FACTOR = uint256(10)**DECIMALS;
+    uint256 public constant DEFAULT_DECIMALS_FACTOR = uint256(10) ** DECIMALS;
     uint8 public constant CHAINLINK_PRICE_DECIMALS = 8;
     uint256 public constant CHAINLINK_PRICE_DECIMAL_FACTOR =
-        uint256(10)**CHAINLINK_PRICE_DECIMALS;
+        uint256(10) ** CHAINLINK_PRICE_DECIMALS;
     uint8 public constant PERCENTAGE_DECIMALS = 4;
     uint256 public constant PERCENTAGE_DECIMAL_FACTOR =
-        uint256(10)**PERCENTAGE_DECIMALS;
+        uint256(10) ** PERCENTAGE_DECIMALS;
     uint256 public constant CURVE_RATIO_DECIMALS = 6;
     uint256 public constant CURVE_RATIO_DECIMALS_FACTOR =
-        uint256(10)**CURVE_RATIO_DECIMALS;
+        uint256(10) ** CURVE_RATIO_DECIMALS;
 
     uint8 public constant JUNIOR = 0;
     uint8 public constant SENIOR = 1;
@@ -126,7 +126,9 @@ contract GVault is ERC4626, StrategyQueue, Owned, ReentrancyGuard {
                             CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
 
-    constructor(ERC20 _asset)
+    constructor(
+        ERC20 _asset
+    )
         ERC20(
             string(abi.encodePacked("Gro ", _asset.symbol(), " Vault")),
             string(abi.encodePacked("gro", _asset.symbol())),
@@ -135,7 +137,7 @@ contract GVault is ERC4626, StrategyQueue, Owned, ReentrancyGuard {
         Owned(msg.sender)
     {
         asset = _asset;
-        minDeposit = 10**_asset.decimals();
+        minDeposit = 10 ** _asset.decimals();
         // 24 hours release window in seconds
         releaseTime = 86400;
     }
@@ -158,24 +160,14 @@ contract GVault is ERC4626, StrategyQueue, Owned, ReentrancyGuard {
     /// @notice Get total invested in strategy
     /// @param _index index of strategy
     /// @return amount of total debt the strategies have to the GVault
-    function getStrategyDebt(uint256 _index)
-        external
-        view
-        returns (uint256 amount)
-    {
+    function getStrategyDebt(
+        uint256 _index
+    ) external view returns (uint256 amount) {
         return strategies[nodes[_index].strategy].totalDebt;
     }
 
     /// @notice Helper function for strategy to get harvest data from vault
-    function getStrategyData()
-        external
-        view
-        returns (
-            bool,
-            uint256,
-            uint256
-        )
-    {
+    function getStrategyData() external view returns (bool, uint256, uint256) {
         StrategyParams storage stratData = strategies[msg.sender];
         return (stratData.active, stratData.totalDebt, stratData.lastReport);
     }
@@ -214,12 +206,10 @@ contract GVault is ERC4626, StrategyQueue, Owned, ReentrancyGuard {
     /// @param _assets user deposit amount
     /// @param _receiver Address receiving the shares
     /// @return shares the number of shares minted during the deposit
-    function deposit(uint256 _assets, address _receiver)
-        external
-        override
-        nonReentrant
-        returns (uint256 shares)
-    {
+    function deposit(
+        uint256 _assets,
+        address _receiver
+    ) external override nonReentrant returns (uint256 shares) {
         // Check for rounding error since we round down in previewDeposit.
         if (_assets < minDeposit) revert Errors.MinDeposit();
         if ((shares = previewDeposit(_assets)) == 0) revert Errors.ZeroShares();
@@ -239,12 +229,10 @@ contract GVault is ERC4626, StrategyQueue, Owned, ReentrancyGuard {
     /// @param _receiver Address receiving the shares
     /// @return assets the number of asset tokens deposited during the mint of the
     /// vault shares
-    function mint(uint256 _shares, address _receiver)
-        external
-        override
-        nonReentrant
-        returns (uint256 assets)
-    {
+    function mint(
+        uint256 _shares,
+        address _receiver
+    ) external override nonReentrant returns (uint256 assets) {
         // Check for rounding error in previewMint.
         if ((assets = previewMint(_shares)) < minDeposit)
             revert Errors.MinDeposit();
@@ -363,24 +351,18 @@ contract GVault is ERC4626, StrategyQueue, Owned, ReentrancyGuard {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice The maximum amount a user can deposit into the vault
-    function maxDeposit(address)
-        public
-        view
-        override
-        returns (uint256 maxAssets)
-    {
+    function maxDeposit(
+        address
+    ) public view override returns (uint256 maxAssets) {
         return type(uint256).max - convertToAssets(totalSupply);
     }
 
     /// @notice Simulate the shares issued for a given deposit
     /// @param _assets number of asset tokens being deposited
     /// @return shares number of shares issued for the number of assets provided
-    function previewDeposit(uint256 _assets)
-        public
-        view
-        override
-        returns (uint256 shares)
-    {
+    function previewDeposit(
+        uint256 _assets
+    ) public view override returns (uint256 shares) {
         return convertToShares(_assets);
     }
 
@@ -392,12 +374,9 @@ contract GVault is ERC4626, StrategyQueue, Owned, ReentrancyGuard {
     /// @notice Simulate the number of assets required to mint a specific number of shares
     /// @param _shares number of shares to mint
     /// @return assets number of assets required to issue the shares inputted
-    function previewMint(uint256 _shares)
-        public
-        view
-        override
-        returns (uint256 assets)
-    {
+    function previewMint(
+        uint256 _shares
+    ) public view override returns (uint256 assets) {
         uint256 _totalSupply = totalSupply; // Saves an extra SLOAD if _totalSupply is non-zero.
         return
             _totalSupply == 0
@@ -408,24 +387,18 @@ contract GVault is ERC4626, StrategyQueue, Owned, ReentrancyGuard {
     /// @notice maximum amount of asset tokens the owner can withdraw
     /// @param _owner address of the owner of the GVault Shares
     /// @return maxAssets maximum amount of asset tokens the owner can withdraw
-    function maxWithdraw(address _owner)
-        public
-        view
-        override
-        returns (uint256 maxAssets)
-    {
+    function maxWithdraw(
+        address _owner
+    ) public view override returns (uint256 maxAssets) {
         return convertToAssets(balanceOf[_owner]);
     }
 
     /// @notice return the amount of shares that would be burned for a given number of assets
     /// @param _assets number of assert tokens to withdraw
     /// @return shares burnt during withdrawal
-    function previewWithdraw(uint256 _assets)
-        public
-        view
-        override
-        returns (uint256 shares)
-    {
+    function previewWithdraw(
+        uint256 _assets
+    ) public view override returns (uint256 shares) {
         uint256 freeFunds_ = _freeFunds(); // Saves an extra SLOAD if _freeFunds is non-zero.
         return
             freeFunds_ == 0
@@ -436,24 +409,18 @@ contract GVault is ERC4626, StrategyQueue, Owned, ReentrancyGuard {
     /// @notice maximum number of shares the owner can redeem
     /// @param _owner address for the owner of the GVault shares
     /// @return maxShares number of GVault shares the owner has
-    function maxRedeem(address _owner)
-        public
-        view
-        override
-        returns (uint256 maxShares)
-    {
+    function maxRedeem(
+        address _owner
+    ) public view override returns (uint256 maxShares) {
         return balanceOf[_owner];
     }
 
     /// @notice Returns the amount of assets that can be redeemed with the shares
     /// @param _shares the number of shares the caller wants to redeem
     /// @return assets the number of asset tokens the caller would receive
-    function previewRedeem(uint256 _shares)
-        public
-        view
-        override
-        returns (uint256 assets)
-    {
+    function previewRedeem(
+        uint256 _shares
+    ) public view override returns (uint256 assets) {
         return convertToAssets(_shares);
     }
 
@@ -473,24 +440,18 @@ contract GVault is ERC4626, StrategyQueue, Owned, ReentrancyGuard {
 
     /// @notice Value of asset in shares
     /// @param _assets amount of asset to convert to shares
-    function convertToShares(uint256 _assets)
-        public
-        view
-        override
-        returns (uint256 shares)
-    {
+    function convertToShares(
+        uint256 _assets
+    ) public view override returns (uint256 shares) {
         uint256 freeFunds_ = _freeFunds(); // Saves an extra SLOAD if _freeFunds is non-zero.
         return freeFunds_ == 0 ? _assets : (_assets * totalSupply) / freeFunds_;
     }
 
     /// @notice Value of shares in underlying asset
     /// @param _shares amount of shares to convert to tokens
-    function convertToAssets(uint256 _shares)
-        public
-        view
-        override
-        returns (uint256 assets)
-    {
+    function convertToAssets(
+        uint256 _shares
+    ) public view override returns (uint256 assets) {
         uint256 _totalSupply = totalSupply; // Saves an extra SLOAD if _totalSupply is non-zero.
         return
             _totalSupply == 0
@@ -501,7 +462,7 @@ contract GVault is ERC4626, StrategyQueue, Owned, ReentrancyGuard {
     /// @notice Gives the price for a single Vault share.
     /// @return The value of a single share.
     function getPricePerShare() external view returns (uint256) {
-        return convertToAssets(10**decimals);
+        return convertToAssets(10 ** decimals);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -516,10 +477,10 @@ contract GVault is ERC4626, StrategyQueue, Owned, ReentrancyGuard {
     /// @notice Update the debtRatio of a specific strategy
     /// @param _strategy target strategy
     /// @param _debtRatio new debt ratio
-    function setDebtRatio(address _strategy, uint256 _debtRatio)
-        external
-        onlyOwner
-    {
+    function setDebtRatio(
+        address _strategy,
+        uint256 _debtRatio
+    ) external onlyOwner {
         if (!strategies[_strategy].active) revert Errors.StrategyNotActive();
         _setDebtRatio(_strategy, _debtRatio);
     }
@@ -527,10 +488,10 @@ contract GVault is ERC4626, StrategyQueue, Owned, ReentrancyGuard {
     /// @notice Add a new strategy to the vault adapter
     /// @param _strategy target strategy to add
     /// @param _debtRatio target debtRatio of strategy
-    function addStrategy(address _strategy, uint256 _debtRatio)
-        external
-        onlyOwner
-    {
+    function addStrategy(
+        address _strategy,
+        uint256 _debtRatio
+    ) external onlyOwner {
         if (_strategy == ZERO_ADDRESS) revert Errors.ZeroAddress();
         if (strategies[_strategy].active) revert Errors.StrategyActive();
         if (address(this) != IStrategy(_strategy).vault())
@@ -585,11 +546,9 @@ contract GVault is ERC4626, StrategyQueue, Owned, ReentrancyGuard {
 
     /// @notice Check how much credits are available for the strategy
     /// @param _strategy Target strategy
-    function creditAvailable(address _strategy)
-        external
-        view
-        returns (uint256)
-    {
+    function creditAvailable(
+        address _strategy
+    ) external view returns (uint256) {
         return _creditAvailable(_strategy);
     }
 
@@ -601,11 +560,9 @@ contract GVault is ERC4626, StrategyQueue, Owned, ReentrancyGuard {
     /// @notice Amount of debt the strategy has to pay back to the vault at next harvest
     /// @param _strategy target strategy
     /// @return amount of debt the strategy has to pay back and the current debt ratio of the strategy
-    function excessDebt(address _strategy)
-        external
-        view
-        returns (uint256, uint256)
-    {
+    function excessDebt(
+        address _strategy
+    ) external view returns (uint256, uint256) {
         return _excessDebt(_strategy);
     }
 
@@ -723,10 +680,9 @@ contract GVault is ERC4626, StrategyQueue, Owned, ReentrancyGuard {
     /// @notice Runs before any withdraw function mainly to ensure vault has enough assets
     /// @param _assets Amount of assets to withdraw
     /// @return Amount of assets withdrawn and amount of assets in vault
-    function beforeWithdraw(uint256 _assets)
-        internal
-        returns (uint256, uint256)
-    {
+    function beforeWithdraw(
+        uint256 _assets
+    ) internal returns (uint256, uint256) {
         // If reserves dont cover the withdrawal, start withdrawing from strategies
         ERC20 _token = asset;
         uint256 vaultBalance = vaultAssets;
@@ -796,11 +752,9 @@ contract GVault is ERC4626, StrategyQueue, Owned, ReentrancyGuard {
     ///     the vault has
     /// @param _strategy target strategy
     /// @dev called during harvest
-    function _creditAvailable(address _strategy)
-        internal
-        view
-        returns (uint256)
-    {
+    function _creditAvailable(
+        address _strategy
+    ) internal view returns (uint256) {
         StrategyParams memory _strategyData = strategies[_strategy];
         uint256 vaultTotalAssets = _totalAssets();
         uint256 vaultDebtLimit = (vaultDebtRatio * vaultTotalAssets) /
@@ -840,11 +794,9 @@ contract GVault is ERC4626, StrategyQueue, Owned, ReentrancyGuard {
     /// @notice Amount by which a strategy exceeds its current debt limit
     /// @param _strategy target strategy
     /// @return amount of debt the strategy has to pay back and the current debt ratio of the strategy
-    function _excessDebt(address _strategy)
-        internal
-        view
-        returns (uint256, uint256)
-    {
+    function _excessDebt(
+        address _strategy
+    ) internal view returns (uint256, uint256) {
         StrategyParams storage strategy = strategies[_strategy];
         uint256 _debtRatio = strategy.debtRatio;
         uint256 strategyDebtLimit = (_debtRatio * _totalAssets()) /
@@ -884,11 +836,9 @@ contract GVault is ERC4626, StrategyQueue, Owned, ReentrancyGuard {
 
     /// @notice Get current estimated amount of assets in strategy
     /// @param _index index of strategy
-    function _getStrategyEstimatedTotalAssets(uint256 _index)
-        internal
-        view
-        returns (uint256)
-    {
+    function _getStrategyEstimatedTotalAssets(
+        uint256 _index
+    ) internal view returns (uint256) {
         return IStrategy(nodes[_index].strategy).estimatedTotalAssets();
     }
 

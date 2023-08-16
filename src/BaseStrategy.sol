@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPLv3
 pragma solidity ^0.8.13;
 
-import "./interfaces/IGVault.sol";
+import {IGVault} from "./interfaces/IGVault.sol";
 import "./interfaces/IStrategy.sol";
 import "./interfaces/IStop.sol";
 import "../lib/openzeppelin-contracts/contracts/utils/Address.sol";

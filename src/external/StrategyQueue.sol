@@ -87,11 +87,9 @@ contract StrategyQueue {
     /// @notice Get strategy at position i of withdrawal queue
     /// @param i position in withdrawal queue
     /// @return strategy strategy at position i
-    function withdrawalQueueAt(uint256 i)
-        external
-        view
-        returns (address strategy)
-    {
+    function withdrawalQueueAt(
+        uint256 i
+    ) external view returns (address strategy) {
         if (i == 0 || i == strategyQueue.totalNodes - 1) {
             strategy = i == 0
                 ? nodes[strategyQueue.head].strategy
@@ -124,11 +122,9 @@ contract StrategyQueue {
     /// @notice Get position of strategy in withdrawal queue
     /// @param _strategy address of strategy
     /// @return returns position of strategy in withdrawal queue
-    function getStrategyPositions(address _strategy)
-        public
-        view
-        returns (uint256)
-    {
+    function getStrategyPositions(
+        address _strategy
+    ) public view returns (uint256) {
         uint48 index = strategyQueue.head;
         uint48 _totalNodes = strategyQueue.totalNodes;
         for (uint48 i = 0; i <= _totalNodes; ++i) {
@@ -179,11 +175,7 @@ contract StrategyQueue {
     /// @dev Moves a strategy a given number of steps. If the number
     ///        of steps exceeds the position of the head/tail, the
     ///        strategy will take the place of the current head/tail
-    function move(
-        uint48 _id,
-        uint48 _steps,
-        bool _back
-    ) internal {
+    function move(uint48 _id, uint48 _steps, bool _back) internal {
         Strategy storage oldPos = nodes[_id];
         if (_steps == 0) revert StrategyNotMoved(1);
         if (oldPos.strategy == ZERO_ADDRESS) revert NoIdEntry(_id);
