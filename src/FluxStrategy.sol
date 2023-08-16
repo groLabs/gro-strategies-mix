@@ -315,7 +315,6 @@ contract FluxStrategy is BaseStrategy {
     /// @param _slippage ignore slippage as Flux is not AMM
     /// @return amount of assets denominated in 3crv that were divested
     function _divestAll(bool _slippage) internal override returns (uint256) {
-        uint256 threeCurveSnapshot = THREE_CRV.balanceOf(address(this));
         uint256 balance = _fToken.balanceOf(address(this));
         uint256 success = _fToken.redeem(balance);
         if (success != 0) revert FluxIntegrationErrors.RedeemFailed();
@@ -373,6 +372,47 @@ contract FluxStrategy is BaseStrategy {
         uint256 _excessDebt,
         uint256 _debtRatio
     ) internal override returns (uint256, uint256, uint256, uint256) {
-        return (0, 0, 0, 0);
+        uint256 profit;
+        uint256 loss;
+        uint256 debtRepayment;
+
+        uint256 debt = _gVault.getStrategyDebt();
+
+        (uint256 assets, uint256 balance, ) = _estimatedTotalAssets();
+        // Early revert
+        if (_excessDebt > assets) {
+            revert StrategyErrors.ExcessDebtGtThanAssets();
+        } else {
+            // If current assets are greater than debt, we have profit
+            if (assets > debt) {
+                profit = assets - debt;
+                uint256 profitToRepay = 0;
+                if (profit > profitThreshold) {
+                    profitToRepay =
+                        (profit * (PERCENTAGE_DECIMAL_FACTOR - _debtRatio)) /
+                        PERCENTAGE_DECIMAL_FACTOR;
+                }
+                if (profitToRepay + _excessDebt > balance) {
+                    balance += _divest(
+                        profitToRepay + _excessDebt - balance,
+                        true
+                    );
+                    debtRepayment = balance;
+                } else {
+                    debtRepayment = profitToRepay + _excessDebt;
+                }
+                // If current assets are less than debt, we have loss
+            } else if (assets < debt) {
+                loss = debt - assets;
+                // here for safety, but should really never be the case
+                //  that loss > _excessDebt
+                if (loss > _excessDebt) debtRepayment = 0;
+                else if (balance < _excessDebt - loss) {
+                    balance += _divest(_excessDebt - loss - balance, true);
+                    debtRepayment = balance;
+                } else debtRepayment = _excessDebt - loss;
+            }
+        }
+        return (profit, loss, debtRepayment, balance);
     }
 }
