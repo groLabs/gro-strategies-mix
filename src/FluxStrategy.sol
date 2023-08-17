@@ -70,7 +70,7 @@ contract FluxStrategy is BaseStrategy {
                         STORAGE VARIABLES
     //////////////////////////////////////////////////////////////*/
     ERC20 internal immutable _underlyingAsset;
-    IFLuxToken public immutable _fToken;
+    IFluxToken public immutable _fToken;
     uint256 public immutable underlyingAssetIndex;
 
     constructor(
@@ -97,7 +97,7 @@ contract FluxStrategy is BaseStrategy {
         }
 
         _underlyingAsset = ERC20(_asset);
-        _fToken = IFLuxToken(_fTokenAddr);
+        _fToken = IFluxToken(_fTokenAddr);
         // Approve underlying asset to be used by 3pool
         _underlyingAsset.safeApprove(address(THREE_POOL), type(uint256).max);
         // Approve underlying asset to be used by fToken contract

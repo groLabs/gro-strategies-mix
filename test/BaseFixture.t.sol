@@ -4,6 +4,7 @@ pragma solidity ^0.8.13;
 import "forge-std/Test.sol";
 import "../src/external/GVault.sol";
 import "../src/interfaces/ICurve3Pool.sol";
+import "../src/interfaces/IFluxToken.sol";
 import {ERC20} from "../lib/solmate/src/tokens/ERC20.sol";
 
 import "./utils.sol";
@@ -26,12 +27,12 @@ contract BaseFixture is Test {
     ERC20 public constant USDT =
         ERC20(0xdAC17F958D2ee523a2206206994597C13D831ec7);
 
-    ERC20 public constant F_USDC =
-        ERC20(0x465a5a630482f3abD6d3b84B39B29b07214d19e5);
-    ERC20 public constant F_DAI =
-        ERC20(0xe2bA8693cE7474900A045757fe0efCa900F6530b);
-    ERC20 public constant F_USDT =
-        ERC20(0x81994b9607e06ab3d5cF3AffF9a67374f05F27d7);
+    IFluxToken public constant F_USDC =
+        IFluxToken(0x465a5a630482f3abD6d3b84B39B29b07214d19e5);
+    IFluxToken public constant F_DAI =
+        IFluxToken(0xe2bA8693cE7474900A045757fe0efCa900F6530b);
+    IFluxToken public constant F_USDT =
+        IFluxToken(0x81994b9607e06ab3d5cF3AffF9a67374f05F27d7);
 
     GVault public gVault;
 
@@ -55,9 +56,10 @@ contract BaseFixture is Test {
 
     function depositIntoVault(
         address _user,
-        uint256 _amount
+        uint256 _amount,
+        uint256 _tokenIndex
     ) public returns (uint256 shares) {
-        uint256 balance = genThreeCrv(_amount, _user);
+        uint256 balance = genThreeCrv(_amount, _user, _tokenIndex);
         vm.startPrank(_user);
         THREE_POOL_TOKEN.approve(address(gVault), balance);
         shares = gVault.deposit(balance, _user);
@@ -66,7 +68,8 @@ contract BaseFixture is Test {
 
     function genThreeCrv(
         uint256 amount,
-        address _user
+        address _user,
+        uint256 _tokenIndex
     ) public returns (uint256) {
         vm.startPrank(_user);
         DAI.approve(THREE_POOL, amount);
@@ -96,8 +99,9 @@ contract BaseFixture is Test {
             address(USDT),
             type(uint256).max
         );
-
-        ICurve3Pool(THREE_POOL).add_liquidity([dai, usdc, usdt], 0);
+        uint256[3] memory amounts;
+        amounts[_tokenIndex] = amount;
+        ICurve3Pool(THREE_POOL).add_liquidity(amounts, 0);
 
         vm.stopPrank();
 

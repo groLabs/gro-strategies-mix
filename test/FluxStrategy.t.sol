@@ -2,6 +2,7 @@
 pragma solidity ^0.8.13;
 
 import "./BaseFixture.t.sol";
+import "../src/interfaces/ICurve3Pool.sol";
 import {GenericStrategyErrors} from "../src/BaseStrategy.sol";
 import {FluxStrategy} from "../src/FluxStrategy.sol";
 
@@ -10,10 +11,17 @@ contract TestFluxStrategy is BaseFixture {
     FluxStrategy public daiStrategy;
     FluxStrategy public usdcStrategy;
     FluxStrategy public usdtStrategy;
+    uint256 public constant STRATEGY_SHARE = 10 ** 4 / uint256(3);
 
     /*//////////////////////////////////////////////////////////////
                         Helper functions and setup
     //////////////////////////////////////////////////////////////*/
+    function convert3CrvToUnderlying(
+        uint256 amount,
+        int128 tokenIx
+    ) internal returns (uint256) {
+        return ICurve3Pool(THREE_POOL).calc_withdraw_one_coin(amount, tokenIx);
+    }
 
     function setUp() public override {
         super.setUp();
@@ -35,11 +43,9 @@ contract TestFluxStrategy is BaseFixture {
         daiStrategy.setKeeper(address(this));
         usdcStrategy.setKeeper(address(this));
         usdtStrategy.setKeeper(address(this));
-        gVault.addStrategy(address(daiStrategy), 3333);
-        gVault.addStrategy(address(usdcStrategy), 3333);
-        gVault.addStrategy(address(usdtStrategy), 3333);
-        // Give 3crv to vault:
-        depositIntoVault(address(this), 10_000_000e18);
+        gVault.addStrategy(address(daiStrategy), STRATEGY_SHARE);
+        gVault.addStrategy(address(usdcStrategy), STRATEGY_SHARE);
+        gVault.addStrategy(address(usdtStrategy), STRATEGY_SHARE);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -111,6 +117,9 @@ contract TestFluxStrategy is BaseFixture {
                         Core logic tests
     //////////////////////////////////////////////////////////////*/
     function testStrategiesBasicHarvest() public {
+        // Give 3crv to vault:
+        depositIntoVault(address(this), 10_000_000e18, 0);
+
         assertEq(F_DAI.balanceOf(address(daiStrategy)), 0);
         assertEq(F_USDC.balanceOf(address(usdcStrategy)), 0);
         assertEq(F_USDT.balanceOf(address(usdtStrategy)), 0);
@@ -127,5 +136,28 @@ contract TestFluxStrategy is BaseFixture {
         assertEq(DAI.balanceOf(address(daiStrategy)), 0);
         assertEq(USDC.balanceOf(address(usdcStrategy)), 0);
         assertEq(USDT.balanceOf(address(usdtStrategy)), 0);
+    }
+
+    function testStrategyHarvestAssets(uint256 daiDeposit) public {
+        // Give 3crv to vault:
+        vm.assume(daiDeposit > 100e18);
+        vm.assume(daiDeposit < 100_000_000e18);
+        depositIntoVault(address(this), daiDeposit, 0);
+        uint256 strategyShare = gVault.totalAssets() / uint256(3);
+        daiStrategy.runHarvest();
+
+        // Expected ftoken balance would be 3crv converted to DAI and divided by ftoken exchange rate
+        uint256 estimatedUnderlyingStable = convert3CrvToUnderlying(
+            strategyShare,
+            0
+        );
+        uint256 expectedFTokenBalance = (estimatedUnderlyingStable * 1e18) /
+            F_DAI.exchangeRateStored();
+
+        assertApproxEqAbs(
+            F_DAI.balanceOf(address(daiStrategy)),
+            expectedFTokenBalance,
+            1e13
+        );
     }
 }

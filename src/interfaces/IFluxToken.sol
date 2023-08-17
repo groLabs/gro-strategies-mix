@@ -3,7 +3,7 @@ pragma solidity ^0.8.13;
 
 /// @dev Interface of the ERC20 standard as defined in the EIP.
 /// @dev This includes the optional name, symbol, and decimals metadata.
-interface IFLuxToken {
+interface IFluxToken {
     /// @notice Returns the amount of tokens in existence.
     function totalSupply() external view returns (uint256);
 
