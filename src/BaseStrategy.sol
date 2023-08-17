@@ -65,6 +65,8 @@ abstract contract BaseStrategy is IStrategy {
         baseAsset = _gVault.asset();
     }
 
+    event NewKeeper(address indexed keeper);
+
     /*//////////////////////////////////////////////////////////////
                         VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
@@ -135,6 +137,15 @@ abstract contract BaseStrategy is IStrategy {
         if (msg.sender != owner) revert GenericStrategyErrors.NotOwner();
         stopLossLogic = _newStopLoss;
         emit LogNewStopLoss(_newStopLoss);
+    }
+
+    /// @notice Add keeper from the strategy
+    /// @param _keeper keeper to add
+    function setKeeper(address _keeper) external {
+        if (msg.sender != owner) revert GenericStrategyErrors.NotOwner();
+        keepers[_keeper] = true;
+
+        emit NewKeeper(_keeper);
     }
 
     /// @notice Pulls out all funds into strategies base asset and stops

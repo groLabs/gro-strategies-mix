@@ -5,13 +5,14 @@ import "forge-std/Test.sol";
 import "../src/external/GVault.sol";
 import "../src/interfaces/ICurve3Pool.sol";
 import {ERC20} from "../lib/solmate/src/tokens/ERC20.sol";
-import {FluxStrategy} from "../src/FluxStrategy.sol";
+
 import "./utils.sol";
 import {SafeTransferLib} from "../lib/solmate/src/utils/SafeTransferLib.sol";
 
 contract BaseFixture is Test {
     using stdStorage for StdStorage;
     using SafeTransferLib for ERC20;
+
     ERC20 public constant THREE_POOL_TOKEN =
         ERC20(address(0x6c3F90f043a72FA612cbac8115EE7e52BDe6E490));
 
@@ -33,36 +34,34 @@ contract BaseFixture is Test {
         ERC20(0x81994b9607e06ab3d5cF3AffF9a67374f05F27d7);
 
     GVault public gVault;
-    FluxStrategy public daiStrategy;
-    FluxStrategy public usdcStrategy;
-    FluxStrategy public usdtStrategy;
 
     Utils internal utils;
 
+    address payable[] internal users;
+    address internal alice;
+    address internal bob;
+
     function setUp() public virtual {
         utils = new Utils();
-        gVault = new GVault(THREE_POOL_TOKEN);
-        daiStrategy = new FluxStrategy(
-            address(gVault),
-            address(DAI),
-            address(F_DAI)
-        );
-        usdcStrategy = new FluxStrategy(
-            address(gVault),
-            address(USDC),
-            address(F_USDC)
-        );
-        usdtStrategy = new FluxStrategy(
-            address(gVault),
-            address(USDT),
-            address(F_USDT)
-        );
-        gVault.addStrategy(address(daiStrategy), 3333);
-        gVault.addStrategy(address(usdcStrategy), 3333);
-        gVault.addStrategy(address(usdtStrategy), 3333);
+        users = utils.createUsers(4);
 
-        // Give 3crv to vault:
-        genThreeCrv(10_000_000e18, address(gVault));
+        alice = users[0];
+        vm.label(alice, "Alice");
+        bob = users[1];
+        vm.label(bob, "Bob");
+
+        gVault = new GVault(THREE_POOL_TOKEN);
+    }
+
+    function depositIntoVault(
+        address _user,
+        uint256 _amount
+    ) public returns (uint256 shares) {
+        uint256 balance = genThreeCrv(_amount, _user);
+        vm.startPrank(_user);
+        THREE_POOL_TOKEN.approve(address(gVault), balance);
+        shares = gVault.deposit(balance, _user);
+        vm.stopPrank();
     }
 
     function genThreeCrv(
@@ -117,48 +116,5 @@ contract BaseFixture is Test {
             .with_key(_user)
             .find();
         vm.store(_contract, bytes32(slot), bytes32(value));
-    }
-
-    /// @notice Basic test to ensure the fixture is working
-    function testBasicSetup() public {
-        assertEq(daiStrategy.asset(), address(DAI));
-        assertEq(usdcStrategy.asset(), address(USDC));
-        assertEq(usdtStrategy.asset(), address(USDT));
-
-        // Check allowances on 3pool:
-        assertEq(
-            ERC20(DAI).allowance(address(daiStrategy), THREE_POOL),
-            type(uint256).max
-        );
-        assertEq(
-            ERC20(USDC).allowance(address(usdcStrategy), THREE_POOL),
-            type(uint256).max
-        );
-        assertEq(
-            ERC20(USDT).allowance(address(usdtStrategy), THREE_POOL),
-            type(uint256).max
-        );
-
-        // Check allowances on fTokens:
-        assertEq(
-            ERC20(DAI).allowance(address(daiStrategy), address(F_DAI)),
-            type(uint256).max
-        );
-        assertEq(
-            ERC20(USDC).allowance(address(usdcStrategy), address(F_USDC)),
-            type(uint256).max
-        );
-        assertEq(
-            ERC20(USDT).allowance(address(usdtStrategy), address(F_USDT)),
-            type(uint256).max
-        );
-
-        // Check underlying asset index wrt to 3pool
-        assertEq(daiStrategy.underlyingAssetIndex(), 0);
-        assertEq(usdcStrategy.underlyingAssetIndex(), 1);
-        assertEq(usdtStrategy.underlyingAssetIndex(), 2);
-
-        // Check strategy owner
-        assertEq(daiStrategy.owner(), address(this));
     }
 }
