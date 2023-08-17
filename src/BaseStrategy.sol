@@ -2,21 +2,18 @@
 pragma solidity ^0.8.13;
 
 import {IGVault} from "./interfaces/IGVault.sol";
+import {ERC20} from "../lib/solmate/src/tokens/ERC20.sol";
 import "./interfaces/IStrategy.sol";
 import "./interfaces/IStop.sol";
 import "../lib/openzeppelin-contracts/contracts/utils/Address.sol";
 
-library StrategyErrors {
+library GenericStrategyErrors {
     error NotOwner(); // 0x30cd7471
     error NotVault(); // 0x62df0545
     error NotKeeper(); // 0xf512b278
     error Stopped(); // 0x7acc84e3
-    error SamePid(); // 0x4eb5bc6d
     error BaseAsset(); // 0xaeca768b
-    error LpToken(); // 0xaeca768b
-    error LTMinAmountExpected(); // 0x3d93e699
     error ExcessDebtGtThanAssets(); // 0x961696d0
-    error LPNotZero(); // 0xe4e07afa
     error SlippageProtection(); // 0x17d431f4
 }
 
@@ -25,13 +22,17 @@ abstract contract BaseStrategy is IStrategy {
     /*//////////////////////////////////////////////////////////////
                         CONSTANTS & IMMUTABLES
     //////////////////////////////////////////////////////////////*/
+
     uint256 internal constant MAX_REPORT_DELAY = 604800;
     uint256 internal constant MIN_REPORT_DELAY = 172800;
-    uint256 internal constant DEFAULT_DECIMALS_FACTOR = 1E18;
-
-    uint256 internal constant INVESTMENT_BUFFER = 10E18;
+    uint256 internal constant DEFAULT_DECIMALS_FACTOR = 1e18;
+    uint256 public constant DECIMALS_FACTOR = 1e18;
+    uint256 internal constant PERCENTAGE_DECIMAL_FACTOR = 1e4;
+    uint256 internal constant INVESTMENT_BUFFER = 10e18;
 
     IGVault internal immutable _gVault;
+    // Most likely 3crv
+    ERC20 public immutable baseAsset;
     /*//////////////////////////////////////////////////////////////
                         STORAGE VARIABLES
     //////////////////////////////////////////////////////////////*/
@@ -61,6 +62,7 @@ abstract contract BaseStrategy is IStrategy {
     constructor(address _vault) {
         require(_vault.isContract(), "Vault address is not a contract");
         _gVault = IGVault(_vault);
+        baseAsset = _gVault.asset();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -91,8 +93,11 @@ abstract contract BaseStrategy is IStrategy {
         }
         profit += _gVault.creditAvailable();
         if (excessDebt > debtThreshold) return true;
-        if (profit > profitThreshold && timeSinceLastHarvest > MIN_REPORT_DELAY)
+        if (
+            profit > profitThreshold && timeSinceLastHarvest > MIN_REPORT_DELAY
+        ) {
             return true;
+        }
 
         return false;
     }
@@ -127,9 +132,37 @@ abstract contract BaseStrategy is IStrategy {
     //////////////////////////////////////////////////////////////*/
     /// @notice Set new stop loss logic
     function setStopLossLogic(address _newStopLoss) external {
-        if (msg.sender != owner) revert StrategyErrors.NotOwner();
+        if (msg.sender != owner) revert GenericStrategyErrors.NotOwner();
         stopLossLogic = _newStopLoss;
         emit LogNewStopLoss(_newStopLoss);
+    }
+
+    /// @notice Pulls out all funds into strategies base asset and stops
+    ///     the strategy from being able to run harvest. Reports back
+    ///     any gains/losses from this action to the vault
+    function stopLoss() external virtual returns (bool) {
+        if (!keepers[msg.sender]) revert GenericStrategyErrors.NotKeeper();
+        if (_divestAll(true) == 0) {
+            stopLossAttempts += 1;
+            return false;
+        }
+        uint256 debt = _gVault.getStrategyDebt();
+        uint256 balance = baseAsset.balanceOf(address(this));
+        uint256 loss;
+        uint256 profit;
+        // we expect losses, but should account for a situation that
+        //     produces gains
+        if (debt > balance) {
+            loss = debt - balance;
+        } else {
+            profit = balance - debt;
+        }
+        // We dont attempt to repay anything - follow up actions need
+        //  to be taken to withdraw any assets from the strategy
+        _gVault.report(profit, loss, 0, false);
+        stop = true;
+        stopLossAttempts = 0;
+        return true;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -167,5 +200,51 @@ abstract contract BaseStrategy is IStrategy {
     function _realisePnl(
         uint256 _excessDebt,
         uint256 _debtRatio
-    ) internal virtual returns (uint256, uint256, uint256, uint256);
+    ) internal virtual returns (uint256, uint256, uint256, uint256) {
+        uint256 profit;
+        uint256 loss;
+        uint256 debtRepayment;
+
+        uint256 debt = _gVault.getStrategyDebt();
+
+        (uint256 assets, uint256 balance, ) = _estimatedTotalAssets();
+        // Early revert
+        if (_excessDebt > assets) {
+            revert GenericStrategyErrors.ExcessDebtGtThanAssets();
+        } else {
+            // If current assets are greater than debt, we have profit
+            if (assets > debt) {
+                profit = assets - debt;
+                uint256 profitToRepay = 0;
+                if (profit > profitThreshold) {
+                    profitToRepay =
+                        (profit * (PERCENTAGE_DECIMAL_FACTOR - _debtRatio)) /
+                        PERCENTAGE_DECIMAL_FACTOR;
+                }
+                if (profitToRepay + _excessDebt > balance) {
+                    balance += _divest(
+                        profitToRepay + _excessDebt - balance,
+                        true
+                    );
+                    debtRepayment = balance;
+                } else {
+                    debtRepayment = profitToRepay + _excessDebt;
+                }
+                // If current assets are less than debt, we have loss
+            } else if (assets < debt) {
+                loss = debt - assets;
+                // here for safety, but should really never be the case
+                //  that loss > _excessDebt
+                if (loss > _excessDebt) {
+                    debtRepayment = 0;
+                } else if (balance < _excessDebt - loss) {
+                    balance += _divest(_excessDebt - loss - balance, true);
+                    debtRepayment = balance;
+                } else {
+                    debtRepayment = _excessDebt - loss;
+                }
+            }
+        }
+        return (profit, loss, debtRepayment, balance);
+    }
 }

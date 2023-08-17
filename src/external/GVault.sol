@@ -234,8 +234,9 @@ contract GVault is ERC4626, StrategyQueue, Owned, ReentrancyGuard {
         address _receiver
     ) external override nonReentrant returns (uint256 assets) {
         // Check for rounding error in previewMint.
-        if ((assets = previewMint(_shares)) < minDeposit)
+        if ((assets = previewMint(_shares)) < minDeposit) {
             revert Errors.MinDeposit();
+        }
 
         asset.safeTransferFrom(msg.sender, address(this), assets);
         vaultAssets += assets;
@@ -292,8 +293,9 @@ contract GVault is ERC4626, StrategyQueue, Owned, ReentrancyGuard {
         if (msg.sender != _owner) {
             uint256 allowed = allowance[_owner][msg.sender]; // Saves gas for limited approvals.
 
-            if (allowed != type(uint256).max)
+            if (allowed != type(uint256).max) {
                 allowance[_owner][msg.sender] = allowed - shares;
+            }
         }
 
         uint256 vaultBalance;
@@ -328,8 +330,9 @@ contract GVault is ERC4626, StrategyQueue, Owned, ReentrancyGuard {
         if (msg.sender != _owner) {
             uint256 allowed = allowance[_owner][msg.sender]; // Saves gas for limited approvals.
 
-            if (allowed != type(uint256).max)
+            if (allowed != type(uint256).max) {
                 allowance[_owner][msg.sender] = allowed - _shares;
+            }
         }
 
         assets = convertToAssets(_shares);
@@ -494,8 +497,9 @@ contract GVault is ERC4626, StrategyQueue, Owned, ReentrancyGuard {
     ) external onlyOwner {
         if (_strategy == ZERO_ADDRESS) revert Errors.ZeroAddress();
         if (strategies[_strategy].active) revert Errors.StrategyActive();
-        if (address(this) != IStrategy(_strategy).vault())
+        if (address(this) != IStrategy(_strategy).vault()) {
             revert Errors.IncorrectVaultOnStrategy();
+        }
 
         StrategyParams storage newStrat = strategies[_strategy];
         newStrat.active = true;
@@ -519,8 +523,9 @@ contract GVault is ERC4626, StrategyQueue, Owned, ReentrancyGuard {
     /// @param _strategy address of strategy to remove
     function _removeStrategy(address _strategy) internal {
         if (strategies[_strategy].active) revert Errors.StrategyActive();
-        if (strategies[_strategy].totalDebt > 0)
+        if (strategies[_strategy].totalDebt > 0) {
             revert Errors.StrategyDebtNotZero();
+        }
 
         _pop(_strategy);
     }
@@ -539,9 +544,11 @@ contract GVault is ERC4626, StrategyQueue, Owned, ReentrancyGuard {
     function moveStrategy(address _strategy, uint256 _pos) external onlyOwner {
         uint256 currentPos = getStrategyPositions(_strategy);
         uint256 _strategyId = strategyId[_strategy];
-        if (currentPos > _pos)
+        if (currentPos > _pos) {
             move(uint48(_strategyId), uint48(currentPos - _pos), false);
-        else move(uint48(_strategyId), uint48(_pos - currentPos), true);
+        } else {
+            move(uint48(_strategyId), uint48(_pos - currentPos), true);
+        }
     }
 
     /// @notice Check how much credits are available for the strategy
@@ -587,8 +594,9 @@ contract GVault is ERC4626, StrategyQueue, Owned, ReentrancyGuard {
     ) external returns (uint256) {
         StrategyParams storage _strategy = strategies[msg.sender];
         if (!_strategy.active) revert Errors.StrategyNotActive();
-        if (asset.balanceOf(msg.sender) < _debtPayment)
+        if (asset.balanceOf(msg.sender) < _debtPayment) {
             revert Errors.IncorrectStrategyAccounting();
+        }
 
         if (_loss > 0) {
             _reportLoss(msg.sender, _loss);
@@ -827,8 +835,9 @@ contract GVault is ERC4626, StrategyQueue, Owned, ReentrancyGuard {
         uint256 _vaultDebtRatio = vaultDebtRatio -
             strategies[_strategy].debtRatio +
             _debtRatio;
-        if (_vaultDebtRatio > PERCENTAGE_DECIMAL_FACTOR)
+        if (_vaultDebtRatio > PERCENTAGE_DECIMAL_FACTOR) {
             revert Errors.VaultDebtRatioTooHigh();
+        }
         strategies[_strategy].debtRatio = _debtRatio;
         vaultDebtRatio = _vaultDebtRatio;
         emit LogNewDebtRatio(_strategy, _debtRatio, _vaultDebtRatio);

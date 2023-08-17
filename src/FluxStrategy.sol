@@ -50,6 +50,7 @@ contract FluxStrategy is BaseStrategy {
     /*//////////////////////////////////////////////////////////////
                         Constants
     //////////////////////////////////////////////////////////////*/
+
     address public constant DAI = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
     address public constant USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
     address public constant USDT = 0xdAC17F958D2ee523a2206206994597C13D831ec7;
@@ -58,8 +59,6 @@ contract FluxStrategy is BaseStrategy {
     address public constant F_DAI = 0xe2bA8693cE7474900A045757fe0efCa900F6530b;
     address public constant F_USDT = 0x81994b9607e06ab3d5cF3AffF9a67374f05F27d7;
 
-    uint256 public constant DECIMALS_FACTOR = 1e18;
-    uint256 internal constant PERCENTAGE_DECIMAL_FACTOR = 1E4;
     ICurve3Pool public constant THREE_POOL =
         ICurve3Pool(0xbEbc44782C7dB0a1A60Cb6fe97d0b483032FF1C7);
     ERC20 public constant THREE_CRV =
@@ -81,7 +80,11 @@ contract FluxStrategy is BaseStrategy {
     ) BaseStrategy(_vault) {
         require(_asset.isContract(), "Asset address is not a contract");
         require(_fTokenAddr.isContract(), "fToken address is not a contract");
-
+        // Make sure base asset it 3crv:
+        require(
+            address(baseAsset) == address(THREE_CRV),
+            "Base asset is not 3crv"
+        );
         // Check that asset and fToken are compatible
         if (_asset == DAI) {
             require(_fTokenAddr == F_DAI, "!fDAI");
@@ -123,8 +126,8 @@ contract FluxStrategy is BaseStrategy {
     /// @notice Reports back any gains/losses that the strategy has made to the vault
     ///     and gets additional credit/pays back debt depending on credit availability
     function runHarvest() external {
-        if (!keepers[msg.sender]) revert StrategyErrors.NotKeeper();
-        if (stop) revert StrategyErrors.Stopped();
+        if (!keepers[msg.sender]) revert GenericStrategyErrors.NotKeeper();
+        if (stop) revert GenericStrategyErrors.Stopped();
         (uint256 excessDebt, uint256 debtRatio) = _gVault.excessDebt(
             address(this)
         );
@@ -138,7 +141,7 @@ contract FluxStrategy is BaseStrategy {
         if (emergencyMode) {
             _divestAll(false);
             emergency = true;
-            debtRepayment = _underlyingAsset.balanceOf(address(this));
+            debtRepayment = baseAsset.balanceOf(address(this));
             uint256 debt = _gVault.getStrategyDebt();
             if (debt > debtRepayment) loss = debt - debtRepayment;
             else profit = debtRepayment - debt;
@@ -166,8 +169,10 @@ contract FluxStrategy is BaseStrategy {
     /// @return loss amount of loss that occurred during withdrawal
     function withdraw(
         uint256 _amount
-    ) external virtual returns (uint256 withdrawnAssets, uint256 loss) {
-        if (msg.sender != address(_gVault)) revert StrategyErrors.NotVault();
+    ) external override returns (uint256 withdrawnAssets, uint256 loss) {
+        if (msg.sender != address(_gVault)) {
+            revert GenericStrategyErrors.NotVault();
+        }
         (uint256 assets, uint256 balance, ) = _estimatedTotalAssets();
         uint256 debt = _gVault.getStrategyDebt();
         // not enough assets to withdraw
@@ -201,36 +206,8 @@ contract FluxStrategy is BaseStrategy {
                 }
             }
         }
-        _underlyingAsset.transfer(msg.sender, withdrawnAssets);
+        baseAsset.transfer(msg.sender, withdrawnAssets);
         return (withdrawnAssets, loss);
-    }
-
-    /// @notice Pulls out all funds into strategies base asset and stops
-    ///     the strategy from being able to run harvest. Reports back
-    ///     any gains/losses from this action to the vault
-    function stopLoss() external virtual returns (bool) {
-        if (!keepers[msg.sender]) revert StrategyErrors.NotKeeper();
-        if (_divestAll(true) == 0) {
-            stopLossAttempts += 1;
-            return false;
-        }
-        uint256 debt = _gVault.getStrategyDebt();
-        uint256 balance = _underlyingAsset.balanceOf(address(this));
-        uint256 loss;
-        uint256 profit;
-        // we expect losses, but should account for a situation that
-        //     produces gains
-        if (debt > balance) {
-            loss = debt - balance;
-        } else {
-            profit = balance - debt;
-        }
-        // We dont attempt to repay anything - follow up actions need
-        //  to be taken to withdraw any assets from the strategy
-        _gVault.report(profit, loss, 0, false);
-        stop = true;
-        stopLossAttempts = 0;
-        return true;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -261,7 +238,6 @@ contract FluxStrategy is BaseStrategy {
         uint256 _debt,
         bool _slippage
     ) internal override returns (uint256) {
-        uint256 balanceSnapshot = _underlyingAsset.balanceOf(address(this));
         // Convert _debt denominated in 3crv to underlying token first, then to fToken
         uint256 estimatedUnderlyingValue = THREE_POOL.calc_withdraw_one_coin(
             _debt,
@@ -276,12 +252,12 @@ contract FluxStrategy is BaseStrategy {
         uint256[3] memory _amounts;
         // Now we need to swap redeemed underlying asset to 3crv
         // Balance to withdraw is calculated as difference between current balance and balance snapshot
-        _amounts[underlyingAssetIndex] =
-            _underlyingAsset.balanceOf(address(this)) -
-            balanceSnapshot;
+        _amounts[underlyingAssetIndex] = _underlyingAsset.balanceOf(
+            address(this)
+        );
         // Add liquidity to 3pool
         THREE_POOL.add_liquidity(_amounts, 0);
-        return _debt;
+        return baseAsset.balanceOf(address(this));
     }
 
     /// @notice Remove all assets from active position
@@ -298,7 +274,7 @@ contract FluxStrategy is BaseStrategy {
         );
         THREE_POOL.add_liquidity(_amounts, 0);
         // Return amount of 3crv that was divested
-        return THREE_CRV.balanceOf(address(this));
+        return baseAsset.balanceOf(address(this));
     }
 
     /// @notice Strategy estimated total assets
@@ -309,83 +285,21 @@ contract FluxStrategy is BaseStrategy {
         override
         returns (uint256, uint256, uint256)
     {
-        // Get balance of underlying asset
-        uint256 _balanceUnderlying = _underlyingAsset.balanceOf(address(this));
-
+        uint256 _balanceUnderlyingIn3Pool = baseAsset.balanceOf(address(this));
         uint256[3] memory _amounts;
-        _amounts[underlyingAssetIndex] = _balanceUnderlying;
-        // Get balance of underlying asset ONLY in 3pool
-        uint256 _balanceUnderlyingIn3Pool = THREE_POOL.calc_token_amount(
-            _amounts,
-            true
-        );
-
         // Get fToken balance in fToken
         uint256 _balanceUnderlyingPosition = (_fToken.balanceOf(address(this)) *
             _fToken.exchangeRateStored()) / DECIMALS_FACTOR;
 
         // "Simulate" deposit into 3pool to get amount of 3crv we can potentially get
-        _amounts[underlyingAssetIndex] =
-            _balanceUnderlying +
-            _balanceUnderlyingPosition;
-        uint256 _estimated3Crv = THREE_POOL.calc_token_amount(_amounts, true);
+        _amounts[underlyingAssetIndex] = _balanceUnderlyingPosition;
+        uint256 _estimated3Crv = THREE_POOL.calc_token_amount(_amounts, true) +
+            _balanceUnderlyingIn3Pool;
         return (
             _estimated3Crv,
             _balanceUnderlyingIn3Pool,
             // No rewards for this strategy
             0
         );
-    }
-
-    /// @notice Calculated the strategies current PnL and attempts to pay back any excess
-    ///     debt the strategy has to the vault.
-    /// @param _excessDebt Amount of debt that the strategy should pay back
-    /// @param _debtRatio ratio of total vault assets the strategy is entitled to
-    function _realisePnl(
-        uint256 _excessDebt,
-        uint256 _debtRatio
-    ) internal override returns (uint256, uint256, uint256, uint256) {
-        uint256 profit;
-        uint256 loss;
-        uint256 debtRepayment;
-
-        uint256 debt = _gVault.getStrategyDebt();
-
-        (uint256 assets, uint256 balance, ) = _estimatedTotalAssets();
-        // Early revert
-        if (_excessDebt > assets) {
-            revert StrategyErrors.ExcessDebtGtThanAssets();
-        } else {
-            // If current assets are greater than debt, we have profit
-            if (assets > debt) {
-                profit = assets - debt;
-                uint256 profitToRepay = 0;
-                if (profit > profitThreshold) {
-                    profitToRepay =
-                        (profit * (PERCENTAGE_DECIMAL_FACTOR - _debtRatio)) /
-                        PERCENTAGE_DECIMAL_FACTOR;
-                }
-                if (profitToRepay + _excessDebt > balance) {
-                    balance += _divest(
-                        profitToRepay + _excessDebt - balance,
-                        true
-                    );
-                    debtRepayment = balance;
-                } else {
-                    debtRepayment = profitToRepay + _excessDebt;
-                }
-                // If current assets are less than debt, we have loss
-            } else if (assets < debt) {
-                loss = debt - assets;
-                // here for safety, but should really never be the case
-                //  that loss > _excessDebt
-                if (loss > _excessDebt) debtRepayment = 0;
-                else if (balance < _excessDebt - loss) {
-                    balance += _divest(_excessDebt - loss - balance, true);
-                    debtRepayment = balance;
-                } else debtRepayment = _excessDebt - loss;
-            }
-        }
-        return (profit, loss, debtRepayment, balance);
     }
 }

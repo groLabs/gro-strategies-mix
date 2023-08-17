@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPLv3
 pragma solidity ^0.8.13;
+
 import "forge-std/Test.sol";
 import "../src/external/GVault.sol";
 import {FluxStrategy} from "../src/FluxStrategy.sol";
