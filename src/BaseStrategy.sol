@@ -66,6 +66,36 @@ abstract contract BaseStrategy is IStrategy {
     /*//////////////////////////////////////////////////////////////
                         VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
+    /// @notice Checks if the strategy should be harvested
+    function canHarvest() external view virtual returns (bool) {
+        (bool active, uint256 totalDebt, uint256 lastReport) = _gVault
+            .getStrategyData();
+
+        // Should not trigger if strategy is not activated
+        if (!active) return false;
+        if (stop) return false;
+
+        // Should trigger if hadn't been called in a while
+        uint256 timeSinceLastHarvest = block.timestamp - lastReport;
+        if (timeSinceLastHarvest > MAX_REPORT_DELAY) return true;
+
+        // Check for profits and losses
+        (uint256 assets, , ) = _estimatedTotalAssets();
+        uint256 debt = totalDebt;
+        (uint256 excessDebt, ) = _gVault.excessDebt(address(this));
+        uint256 profit;
+        if (assets > debt) {
+            profit = assets - debt;
+        } else {
+            excessDebt += debt - assets;
+        }
+        profit += _gVault.creditAvailable();
+        if (excessDebt > debtThreshold) return true;
+        if (profit > profitThreshold && timeSinceLastHarvest > MIN_REPORT_DELAY)
+            return true;
+
+        return false;
+    }
 
     /// @notice Returns underlying vault
     function vault() external view returns (address) {
