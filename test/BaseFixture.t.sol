@@ -60,6 +60,9 @@ contract BaseFixture is Test {
         gVault.addStrategy(address(daiStrategy), 3333);
         gVault.addStrategy(address(usdcStrategy), 3333);
         gVault.addStrategy(address(usdtStrategy), 3333);
+
+        // Give 3crv to vault:
+        genThreeCrv(10_000_000e18, address(gVault));
     }
 
     function genThreeCrv(
