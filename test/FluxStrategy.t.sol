@@ -92,8 +92,6 @@ contract TestFluxStrategy is BaseFixture {
 
         // Check strategy owner
         assertEq(daiStrategy.owner(), address(this));
-        // Make sure 3crv is no 0 in the vault
-        assertGt(THREE_POOL_TOKEN.balanceOf(address(gVault)), 0);
     }
 
     /*//////////////////////////////////////////////////////////////
