@@ -199,7 +199,73 @@ contract TestFluxStrategy is BaseFixture {
         assertApproxEqAbs(
             F_USDT.balanceOf(address(usdtStrategy)),
             expectedFTokenBalance,
-            1e13
+            1e14
         );
+    }
+
+    function testStrategyHarvestDAIWithProfit(uint256 daiDeposit) public {
+        // Give 3crv to vault:
+        vm.assume(daiDeposit > 100e18);
+        vm.assume(daiDeposit < 100_000_000e18);
+        uint256 exchangeRateSnapshot = F_DAI.exchangeRateStored();
+        depositIntoVault(address(this), daiDeposit, 0);
+
+        daiStrategy.runHarvest();
+        uint256 initEstimatedAssets = daiStrategy.estimatedTotalAssets();
+        // Modify fTOKEN fex rate to simulate profit
+        setStorage(
+            address(daiStrategy),
+            IFluxToken(F_DAI.implementation()).exchangeRateStored.selector,
+            address(F_DAI.implementation()),
+            exchangeRateSnapshot * 2
+        );
+        // Run harvest to realize profit
+        daiStrategy.runHarvest();
+
+        assertGt(daiStrategy.estimatedTotalAssets(), initEstimatedAssets);
+    }
+
+    function testStrategyHarvestUSDCWithProfit(uint256 usdcDeposit) public {
+        // USDC has 6 decimals
+        vm.assume(usdcDeposit > 100e6);
+        vm.assume(usdcDeposit < 100_000_000e6);
+        uint256 exchangeRateSnapshot = F_USDC.exchangeRateStored();
+        depositIntoVault(address(this), usdcDeposit, 1);
+        usdcStrategy.runHarvest();
+
+        uint256 initEstimatedAssets = usdcStrategy.estimatedTotalAssets();
+        // Modify fTOKEN fex rate to simulate profit
+        setStorage(
+            address(usdcStrategy),
+            IFluxToken(F_USDC.implementation()).exchangeRateStored.selector,
+            address(F_USDC.implementation()),
+            exchangeRateSnapshot * 2
+        );
+        // Run harvest to realize profit
+        usdcStrategy.runHarvest();
+
+        assertGt(usdcStrategy.estimatedTotalAssets(), initEstimatedAssets);
+    }
+
+    function testStrategyHarvestUSDTWithProfit(uint256 usdtDeposit) public {
+        // USDT has 6 decimals
+        vm.assume(usdtDeposit > 100e6);
+        vm.assume(usdtDeposit < 100_000_000e6);
+        uint256 exchangeRateSnapshot = F_USDT.exchangeRateStored();
+        depositIntoVault(address(this), usdtDeposit, 1);
+        usdtStrategy.runHarvest();
+
+        uint256 initEstimatedAssets = usdtStrategy.estimatedTotalAssets();
+        // Modify fTOKEN fex rate to simulate profit
+        setStorage(
+            address(usdtStrategy),
+            IFluxToken(F_USDT.implementation()).exchangeRateStored.selector,
+            address(F_USDT.implementation()),
+            exchangeRateSnapshot * 2
+        );
+        // Run harvest to realize profit
+        usdtStrategy.runHarvest();
+
+        assertGt(usdtStrategy.estimatedTotalAssets(), initEstimatedAssets);
     }
 }

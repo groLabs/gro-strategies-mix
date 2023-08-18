@@ -10,6 +10,8 @@ interface IFluxToken {
     /// @notice Returns the amount of tokens owned by `account`.
     function balanceOf(address account) external view returns (uint256);
 
+    function implementation() external view returns (address);
+
     /// @notice Moves `amount` tokens from the caller's account to `to`.
     function transfer(address to, uint256 amount) external returns (bool);
 
