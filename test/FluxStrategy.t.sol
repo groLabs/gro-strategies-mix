@@ -136,7 +136,7 @@ contract TestFluxStrategy is BaseFixture {
         assertEq(USDT.balanceOf(address(usdtStrategy)), 0);
     }
 
-    function testStrategyHarvestAssets(uint256 daiDeposit) public {
+    function testStrategyHarvestAssetsDAI(uint256 daiDeposit) public {
         // Give 3crv to vault:
         vm.assume(daiDeposit > 100e18);
         vm.assume(daiDeposit < 100_000_000e18);
@@ -154,6 +154,50 @@ contract TestFluxStrategy is BaseFixture {
 
         assertApproxEqAbs(
             F_DAI.balanceOf(address(daiStrategy)),
+            expectedFTokenBalance,
+            1e13
+        );
+    }
+
+    function testStrategyHarvestAssetsUSDC(uint256 usdcDeposit) public {
+        // USDC has 6 decimals
+        vm.assume(usdcDeposit > 100e6);
+        vm.assume(usdcDeposit < 100_000_000e6);
+        depositIntoVault(address(this), usdcDeposit, 1);
+        uint256 strategyShare = gVault.totalAssets() / uint256(3);
+        usdcStrategy.runHarvest();
+
+        // Expected ftoken balance would be 3crv converted to DAI and divided by ftoken exchange rate
+        uint256 estimatedUnderlyingStable = convert3CrvToUnderlying(
+            strategyShare,
+            1
+        );
+        uint256 expectedFTokenBalance = (estimatedUnderlyingStable * 1e18) /
+            F_USDC.exchangeRateStored();
+        assertApproxEqAbs(
+            F_USDC.balanceOf(address(usdcStrategy)),
+            expectedFTokenBalance,
+            1e13
+        );
+    }
+
+    function testStrategyHarvestAssetsUSDT(uint256 usdtDeposit) public {
+        // USDT has 6 decimals
+        vm.assume(usdtDeposit > 100e6);
+        vm.assume(usdtDeposit < 100_000_000e6);
+        depositIntoVault(address(this), usdtDeposit, 2);
+        uint256 strategyShare = gVault.totalAssets() / uint256(3);
+        usdtStrategy.runHarvest();
+
+        // Expected ftoken balance would be 3crv converted to DAI and divided by ftoken exchange rate
+        uint256 estimatedUnderlyingStable = convert3CrvToUnderlying(
+            strategyShare,
+            2
+        );
+        uint256 expectedFTokenBalance = (estimatedUnderlyingStable * 1e18) /
+            F_USDT.exchangeRateStored();
+        assertApproxEqAbs(
+            F_USDT.balanceOf(address(usdtStrategy)),
             expectedFTokenBalance,
             1e13
         );
