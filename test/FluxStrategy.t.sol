@@ -337,6 +337,11 @@ contract TestFluxStrategy is BaseFixture {
         assertGt(THREE_POOL_TOKEN.balanceOf(address(daiStrategy)), 0);
         assertEq(DAI.balanceOf(address(daiStrategy)), 0);
         assertEq(F_DAI.balanceOf(address(daiStrategy)), 0);
+        // Make sure can't harvest anymore:
+        vm.expectRevert(
+            abi.encodeWithSelector(GenericStrategyErrors.Stopped.selector)
+        );
+        daiStrategy.runHarvest();
     }
 
     function testUSDCShouldPullOutDuringStopLoss(uint256 usdcDeposit) public {
@@ -352,6 +357,11 @@ contract TestFluxStrategy is BaseFixture {
         assertGt(THREE_POOL_TOKEN.balanceOf(address(usdcStrategy)), 0);
         assertEq(USDC.balanceOf(address(usdcStrategy)), 0);
         assertEq(F_USDC.balanceOf(address(usdcStrategy)), 0);
+        // Make sure can't harvest anymore:
+        vm.expectRevert(
+            abi.encodeWithSelector(GenericStrategyErrors.Stopped.selector)
+        );
+        usdcStrategy.runHarvest();
     }
 
     function testUSDTShouldPullOutDuringStopLoss(uint256 usdtDeposit) public {
@@ -367,6 +377,11 @@ contract TestFluxStrategy is BaseFixture {
         assertGt(THREE_POOL_TOKEN.balanceOf(address(usdtStrategy)), 0);
         assertEq(USDT.balanceOf(address(usdtStrategy)), 0);
         assertEq(F_USDT.balanceOf(address(usdtStrategy)), 0);
+        // Make sure can't harvest anymore:
+        vm.expectRevert(
+            abi.encodeWithSelector(GenericStrategyErrors.Stopped.selector)
+        );
+        usdtStrategy.runHarvest();
     }
 
     /*//////////////////////////////////////////////////////////////
