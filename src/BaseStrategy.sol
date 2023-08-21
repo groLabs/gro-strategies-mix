@@ -66,6 +66,7 @@ abstract contract BaseStrategy is IStrategy {
     }
 
     event NewKeeper(address indexed keeper);
+    event EmergencyModeSet(bool mode);
 
     /*//////////////////////////////////////////////////////////////
                         VIEW FUNCTIONS
@@ -174,6 +175,20 @@ abstract contract BaseStrategy is IStrategy {
         stop = true;
         stopLossAttempts = 0;
         return true;
+    }
+
+    /// @notice Restarts strategy after stop-loss has been triggered
+    function resume() external {
+        if (msg.sender != owner) revert GenericStrategyErrors.NotOwner();
+        stop = false;
+    }
+
+    /// @notice Sets emergency mode to enable emergency exit of strategy
+    function setEmergencyMode() external {
+        if (!keepers[msg.sender]) revert GenericStrategyErrors.NotKeeper();
+        emergencyMode = true;
+
+        emit EmergencyModeSet(true);
     }
 
     /*//////////////////////////////////////////////////////////////

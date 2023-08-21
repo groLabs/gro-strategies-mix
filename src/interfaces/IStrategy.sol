@@ -19,4 +19,8 @@ interface IStrategy {
     function stopLoss() external returns (bool);
 
     function getMetaPool() external view returns (address);
+
+    function resume() external;
+
+    function setEmergencyMode() external;
 }

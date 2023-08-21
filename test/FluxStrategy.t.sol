@@ -335,8 +335,8 @@ contract TestFluxStrategy is BaseFixture {
 
         // Make sure all assets are pulled out
         assertGt(THREE_POOL_TOKEN.balanceOf(address(daiStrategy)), 0);
-        assertEq(USDT.balanceOf(address(daiStrategy)), 0);
-        assertEq(F_USDT.balanceOf(address(daiStrategy)), 0);
+        assertEq(DAI.balanceOf(address(daiStrategy)), 0);
+        assertEq(F_DAI.balanceOf(address(daiStrategy)), 0);
     }
 
     function testUSDCShouldPullOutDuringStopLoss(uint256 usdcDeposit) public {
@@ -350,8 +350,8 @@ contract TestFluxStrategy is BaseFixture {
 
         // Make sure all assets are pulled out
         assertGt(THREE_POOL_TOKEN.balanceOf(address(usdcStrategy)), 0);
-        assertEq(USDT.balanceOf(address(usdcStrategy)), 0);
-        assertEq(F_USDT.balanceOf(address(usdcStrategy)), 0);
+        assertEq(USDC.balanceOf(address(usdcStrategy)), 0);
+        assertEq(F_USDC.balanceOf(address(usdcStrategy)), 0);
     }
 
     function testUSDTShouldPullOutDuringStopLoss(uint256 usdtDeposit) public {
@@ -367,5 +367,32 @@ contract TestFluxStrategy is BaseFixture {
         assertGt(THREE_POOL_TOKEN.balanceOf(address(usdtStrategy)), 0);
         assertEq(USDT.balanceOf(address(usdtStrategy)), 0);
         assertEq(F_USDT.balanceOf(address(usdtStrategy)), 0);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                        Emergency Mode
+    //////////////////////////////////////////////////////////////*/
+    function testHarvestEmergency(uint256 daiDeposit) public {
+        // Give 3crv to vault:
+        vm.assume(daiDeposit > 100e18);
+        vm.assume(daiDeposit < 100_000_000e18);
+        depositIntoVault(address(this), daiDeposit, 0);
+        daiStrategy.runHarvest();
+
+        assertEq(THREE_POOL_TOKEN.balanceOf(address(daiStrategy)), 0);
+
+        // Set emergency now and harvest
+        daiStrategy.setEmergencyMode();
+        daiStrategy.runHarvest();
+
+        // Make sure all assets were pulled out
+        assertEq(THREE_POOL_TOKEN.balanceOf(address(daiStrategy)), 0);
+        assertEq(USDT.balanceOf(address(daiStrategy)), 0);
+        assertEq(F_USDT.balanceOf(address(daiStrategy)), 0);
+        // Make sure all 3crv was pulled out and is in the vault
+        assertEq(
+            THREE_POOL_TOKEN.balanceOf(address(gVault)),
+            gVault.totalAssets()
+        );
     }
 }
