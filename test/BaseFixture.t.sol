@@ -78,9 +78,6 @@ contract BaseFixture is Test {
             ERC20(address(USDT)).safeApprove(THREE_POOL, 0);
         }
         ERC20(address(USDT)).safeApprove(THREE_POOL, amount);
-        uint256 dai = amount;
-        uint256 usdt = amount / 10 ** 12;
-        uint256 usdc = amount / 10 ** 12;
         setStorage(
             _user,
             DAI.balanceOf.selector,

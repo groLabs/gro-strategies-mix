@@ -12,6 +12,7 @@ contract TestFluxStrategy is BaseFixture {
     FluxStrategy public usdcStrategy;
     FluxStrategy public usdtStrategy;
     uint256 public constant STRATEGY_SHARE = 10 ** 4 / uint256(3);
+    uint256 internal constant MIN_REPORT_DELAY = 172800;
 
     /*//////////////////////////////////////////////////////////////
                         Helper functions and setup
@@ -207,7 +208,6 @@ contract TestFluxStrategy is BaseFixture {
         // Give 3crv to vault:
         vm.assume(daiDeposit > 100e18);
         vm.assume(daiDeposit < 100_000_000e18);
-        uint256 exchangeRateSnapshot = F_DAI.exchangeRateStored();
         depositIntoVault(address(this), daiDeposit, 0);
 
         daiStrategy.runHarvest();
@@ -250,8 +250,7 @@ contract TestFluxStrategy is BaseFixture {
         // USDT has 6 decimals
         vm.assume(usdtDeposit > 100e6);
         vm.assume(usdtDeposit < 100_000_000e6);
-        uint256 exchangeRateSnapshot = F_USDT.exchangeRateStored();
-        depositIntoVault(address(this), usdtDeposit, 1);
+        depositIntoVault(address(this), usdtDeposit, 2);
         usdtStrategy.runHarvest();
 
         uint256 initEstimatedAssets = usdtStrategy.estimatedTotalAssets();
@@ -290,7 +289,6 @@ contract TestFluxStrategy is BaseFixture {
         // USDC has 6 decimals
         vm.assume(usdcDeposit > 100e6);
         vm.assume(usdcDeposit < 100_000_000e6);
-        uint256 exchangeRateSnapshot = F_USDC.exchangeRateStored();
         depositIntoVault(address(this), usdcDeposit, 1);
         usdcStrategy.runHarvest();
 
@@ -309,8 +307,7 @@ contract TestFluxStrategy is BaseFixture {
         // USDT has 6 decimals
         vm.assume(usdtDeposit > 100e6);
         vm.assume(usdtDeposit < 100_000_000e6);
-        uint256 exchangeRateSnapshot = F_USDT.exchangeRateStored();
-        depositIntoVault(address(this), usdtDeposit, 1);
+        depositIntoVault(address(this), usdtDeposit, 2);
         usdtStrategy.runHarvest();
 
         uint256 initEstimatedAssets = usdtStrategy.estimatedTotalAssets();
@@ -322,5 +319,53 @@ contract TestFluxStrategy is BaseFixture {
 
         assertGt(initEstimatedAssets, usdtStrategy.estimatedTotalAssets());
         assertGt(initVaultAssets, gVault.realizedTotalAssets());
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                        Stop Loss
+    //////////////////////////////////////////////////////////////*/
+    function testDAIShouldPullOutDuringStopLoss(uint256 daiDeposit) public {
+        vm.assume(daiDeposit > 100e18);
+        vm.assume(daiDeposit < 100_000_000e18);
+        depositIntoVault(address(this), daiDeposit, 0);
+        daiStrategy.runHarvest();
+        assertEq(THREE_POOL_TOKEN.balanceOf(address(daiStrategy)), 0);
+        // Now run stop loss
+        daiStrategy.stopLoss();
+
+        // Make sure all assets are pulled out
+        assertGt(THREE_POOL_TOKEN.balanceOf(address(daiStrategy)), 0);
+        assertEq(USDT.balanceOf(address(daiStrategy)), 0);
+        assertEq(F_USDT.balanceOf(address(daiStrategy)), 0);
+    }
+
+    function testUSDCShouldPullOutDuringStopLoss(uint256 usdcDeposit) public {
+        vm.assume(usdcDeposit > 100e6);
+        vm.assume(usdcDeposit < 100_000_000e6);
+        depositIntoVault(address(this), usdcDeposit, 1);
+        usdcStrategy.runHarvest();
+        assertEq(THREE_POOL_TOKEN.balanceOf(address(usdcStrategy)), 0);
+        // Now run stop loss
+        usdcStrategy.stopLoss();
+
+        // Make sure all assets are pulled out
+        assertGt(THREE_POOL_TOKEN.balanceOf(address(usdcStrategy)), 0);
+        assertEq(USDT.balanceOf(address(usdcStrategy)), 0);
+        assertEq(F_USDT.balanceOf(address(usdcStrategy)), 0);
+    }
+
+    function testUSDTShouldPullOutDuringStopLoss(uint256 usdtDeposit) public {
+        vm.assume(usdtDeposit > 100e6);
+        vm.assume(usdtDeposit < 100_000_000e6);
+        depositIntoVault(address(this), usdtDeposit, 2);
+        usdtStrategy.runHarvest();
+        assertEq(THREE_POOL_TOKEN.balanceOf(address(usdtStrategy)), 0);
+        // Now run stop loss
+        usdtStrategy.stopLoss();
+
+        // Make sure all assets are pulled out
+        assertGt(THREE_POOL_TOKEN.balanceOf(address(usdtStrategy)), 0);
+        assertEq(USDT.balanceOf(address(usdtStrategy)), 0);
+        assertEq(F_USDT.balanceOf(address(usdtStrategy)), 0);
     }
 }
