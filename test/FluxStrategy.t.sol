@@ -321,6 +321,28 @@ contract TestFluxStrategy is BaseFixture {
         assertGt(initVaultAssets, gVault.realizedTotalAssets());
     }
 
+    /// @dev Case to check all 3crv is withdrewn from strategy in case all funds are pulled out
+    function testWithdrawAllFromStrategy(uint256 daiDeposit) public {
+        vm.assume(daiDeposit > 100e18);
+        vm.assume(daiDeposit < 100_000_000e18);
+        depositIntoVault(alice, daiDeposit, 0);
+
+        daiStrategy.runHarvest();
+        // Now, after assets are pulled in from harvest, user wants to withdraw everything they deposited,
+        // Which should result in 0 assets left in the strategy
+        withdrawFromVault(
+            alice,
+            gVault.convertToShares(gVault.realizedTotalAssets())
+        );
+
+        assertEq(daiStrategy.estimatedTotalAssets(), 0);
+        // Make sure other strategies have no assets left
+        assertEq(usdcStrategy.estimatedTotalAssets(), 0);
+        assertEq(usdtStrategy.estimatedTotalAssets(), 0);
+        // Make sure nothing left in vault:
+        assertEq(gVault.realizedTotalAssets(), 0);
+    }
+
     /*//////////////////////////////////////////////////////////////
                         Stop Loss
     //////////////////////////////////////////////////////////////*/

@@ -66,6 +66,14 @@ contract BaseFixture is Test {
         vm.stopPrank();
     }
 
+    function withdrawFromVault(
+        address _user,
+        uint256 _amount
+    ) public returns (uint256 shares) {
+        vm.prank(_user);
+        shares = gVault.redeem(_amount, _user, _user);
+    }
+
     function genThreeCrv(
         uint256 amount,
         address _user,
