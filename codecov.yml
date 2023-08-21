@@ -1,0 +1,8 @@
+ignore:
+  - "lib"
+  - "test"
+  - "src/external/ERC4626.sol"
+  - "src/external/GVault.sol"
+  - "src/external/StrategyQueue.sol"
+  - "test/BaseFixture.t.sol"
+  - "test/utils.sol"
