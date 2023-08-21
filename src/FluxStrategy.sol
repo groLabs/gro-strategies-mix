@@ -102,7 +102,8 @@ contract FluxStrategy is BaseStrategy {
         _underlyingAsset.safeApprove(address(THREE_POOL), type(uint256).max);
         // Approve underlying asset to be used by fToken contract
         _underlyingAsset.safeApprove(address(_fToken), type(uint256).max);
-
+        // Approve 3crv to be used by gvault
+        THREE_CRV.approve(address(_gVault), type(uint256).max);
         owner = msg.sender;
 
         underlyingAssetIndex = _asset == DAI ? DAI_INDEX : _asset == USDC
