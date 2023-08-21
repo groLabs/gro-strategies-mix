@@ -343,6 +343,26 @@ contract TestFluxStrategy is BaseFixture {
         assertEq(gVault.realizedTotalAssets(), 0);
     }
 
+    function testWithdrawPartiallyFromStrategy(uint256 daiDeposit) public {
+        vm.assume(daiDeposit > 100e18);
+        vm.assume(daiDeposit < 100_000_000e18);
+        depositIntoVault(alice, daiDeposit, 0);
+
+        uint256 vaultAssetsSnapshot = gVault.realizedTotalAssets();
+        daiStrategy.runHarvest();
+        // Withdraw half of the assets
+        withdrawFromVault(
+            alice,
+            gVault.convertToShares(gVault.realizedTotalAssets() / 2)
+        );
+        // Make sure half of the assets are taken out from vault
+        assertApproxEqAbs(
+            gVault.realizedTotalAssets(),
+            vaultAssetsSnapshot / 2,
+            1e13
+        );
+    }
+
     /*//////////////////////////////////////////////////////////////
                         Stop Loss
     //////////////////////////////////////////////////////////////*/
