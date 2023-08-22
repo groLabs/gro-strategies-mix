@@ -364,6 +364,57 @@ contract TestFluxStrategy is BaseFixture {
     }
 
     /*//////////////////////////////////////////////////////////////
+                        View function tests
+    //////////////////////////////////////////////////////////////*/
+    /// @dev case when there is profit to harvest and enough time passed
+    function testCanHarvestHappyProfit(uint256 daiDeposit) public {
+        vm.assume(daiDeposit > 10000e18);
+        vm.assume(daiDeposit < 100_000_000e18);
+        depositIntoVault(alice, daiDeposit, 0);
+        daiStrategy.runHarvest();
+
+        // Modify fTOKEN fex rate to simulate massive profit to make sure can harvest is true
+        setStorage(
+            address(F_DAI),
+            DAI.balanceOf.selector,
+            address(DAI),
+            DAI.balanceOf(address(F_DAI)) * 100
+        );
+        // can harvest should be false as not enough time has passed
+        vm.warp(block.timestamp + daiStrategy.MIN_REPORT_DELAY() + 1);
+        assertTrue(daiStrategy.canHarvest());
+    }
+
+    /// @dev Should always harvest if too much time passed
+    function testCanHarvestTooMuchTimePassed(uint256 daiDeposit) public {
+        vm.assume(daiDeposit > 100e18);
+        vm.assume(daiDeposit < 100_000_000e18);
+        depositIntoVault(alice, daiDeposit, 0);
+        daiStrategy.runHarvest();
+
+        assertFalse(daiStrategy.canHarvest());
+        vm.warp(block.timestamp + daiStrategy.MAX_REPORT_DELAY() + 1);
+        assertTrue(daiStrategy.canHarvest());
+    }
+
+    function testCanHarvestNotEnoughTimePassed(uint256 daiDeposit) public {
+        vm.assume(daiDeposit > 100e18);
+        vm.assume(daiDeposit < 100_000_000e18);
+        depositIntoVault(alice, daiDeposit, 0);
+        daiStrategy.runHarvest();
+
+        // Modify fTOKEN fex rate to simulate profit
+        setStorage(
+            address(F_DAI),
+            DAI.balanceOf.selector,
+            address(DAI),
+            DAI.balanceOf(address(F_DAI)) * 10
+        );
+        // can harvest should be false as not enough time has passed
+        assertFalse(daiStrategy.canHarvest());
+    }
+
+    /*//////////////////////////////////////////////////////////////
                         Stop Loss
     //////////////////////////////////////////////////////////////*/
     function testDAIShouldPullOutDuringStopLoss(uint256 daiDeposit) public {

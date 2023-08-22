@@ -23,12 +23,12 @@ abstract contract BaseStrategy is IStrategy {
                         CONSTANTS & IMMUTABLES
     //////////////////////////////////////////////////////////////*/
 
-    uint256 internal constant MAX_REPORT_DELAY = 604800;
-    uint256 internal constant MIN_REPORT_DELAY = 172800;
     uint256 internal constant DEFAULT_DECIMALS_FACTOR = 1e18;
-    uint256 public constant DECIMALS_FACTOR = 1e18;
     uint256 internal constant PERCENTAGE_DECIMAL_FACTOR = 1e4;
     uint256 internal constant INVESTMENT_BUFFER = 10e18;
+    uint256 public constant MAX_REPORT_DELAY = 604800;
+    uint256 public constant MIN_REPORT_DELAY = 172800;
+    uint256 public constant DECIMALS_FACTOR = 1e18;
 
     IGVault internal immutable _gVault;
     // Most likely 3crv
