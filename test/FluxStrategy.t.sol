@@ -137,7 +137,7 @@ contract TestFluxStrategy is BaseFixture {
         assertEq(USDT.balanceOf(address(usdtStrategy)), 0);
     }
 
-    function testStrategyHarvestAssetsDAI(uint256 daiDeposit) public {
+    function testStrategyHarvestAssetsDAI(uint256 daiDeposit) private {
         // Give 3crv to vault:
         vm.assume(daiDeposit > 100e18);
         vm.assume(daiDeposit < 100_000_000e18);
@@ -160,7 +160,7 @@ contract TestFluxStrategy is BaseFixture {
         );
     }
 
-    function testStrategyHarvestAssetsUSDC(uint256 usdcDeposit) public {
+    function testStrategyHarvestAssetsUSDC(uint256 usdcDeposit) private{
         // USDC has 6 decimals
         vm.assume(usdcDeposit > 100e6);
         vm.assume(usdcDeposit < 100_000_000e6);
@@ -182,7 +182,7 @@ contract TestFluxStrategy is BaseFixture {
         );
     }
 
-    function testStrategyHarvestAssetsUSDT(uint256 usdtDeposit) public {
+    function testStrategyHarvestAssetsUSDT(uint256 usdtDeposit) private {
         // USDT has 6 decimals
         vm.assume(usdtDeposit > 100e6);
         vm.assume(usdtDeposit < 100_000_000e6);
@@ -204,7 +204,7 @@ contract TestFluxStrategy is BaseFixture {
         );
     }
 
-    function testStrategyHarvestDAIWithProfit(uint256 daiDeposit) public {
+    function testStrategyHarvestDAIWithProfit(uint256 daiDeposit) private {
         // Give 3crv to vault:
         vm.assume(daiDeposit > 100e18);
         vm.assume(daiDeposit < 100_000_000e18);
@@ -225,7 +225,7 @@ contract TestFluxStrategy is BaseFixture {
         assertGt(daiStrategy.estimatedTotalAssets(), initEstimatedAssets);
     }
 
-    function testStrategyHarvestUSDCWithProfit(uint256 usdcDeposit) public {
+    function testStrategyHarvestUSDCWithProfit(uint256 usdcDeposit) private {
         // USDC has 6 decimals
         vm.assume(usdcDeposit > 100e6);
         vm.assume(usdcDeposit < 100_000_000e6);
@@ -246,7 +246,7 @@ contract TestFluxStrategy is BaseFixture {
         assertGt(usdcStrategy.estimatedTotalAssets(), initEstimatedAssets);
     }
 
-    function testStrategyHarvestUSDTWithProfit(uint256 usdtDeposit) public {
+    function testStrategyHarvestUSDTWithProfit(uint256 usdtDeposit) private {
         // USDT has 6 decimals
         vm.assume(usdtDeposit > 100e6);
         vm.assume(usdtDeposit < 100_000_000e6);
@@ -267,7 +267,7 @@ contract TestFluxStrategy is BaseFixture {
         assertGt(usdtStrategy.estimatedTotalAssets(), initEstimatedAssets);
     }
 
-    function testStrategyHarvestDAIWithLoss(uint256 daiDeposit) public {
+    function testStrategyHarvestDAIWithLoss(uint256 daiDeposit) private {
         // Give 3crv to vault:
         vm.assume(daiDeposit > 100e18);
         vm.assume(daiDeposit < 100_000_000e18);
@@ -285,7 +285,7 @@ contract TestFluxStrategy is BaseFixture {
         assertGt(initVaultAssets, gVault.realizedTotalAssets());
     }
 
-    function testStrategyHarvestUSDCWithLoss(uint256 usdcDeposit) public {
+    function testStrategyHarvestUSDCWithLoss(uint256 usdcDeposit) private {
         // USDC has 6 decimals
         vm.assume(usdcDeposit > 100e6);
         vm.assume(usdcDeposit < 100_000_000e6);
@@ -303,7 +303,7 @@ contract TestFluxStrategy is BaseFixture {
         assertGt(initVaultAssets, gVault.realizedTotalAssets());
     }
 
-    function testStrategyHarvestUSDTWithLoss(uint256 usdtDeposit) public {
+    function testStrategyHarvestUSDTWithLoss(uint256 usdtDeposit) private {
         // USDT has 6 decimals
         vm.assume(usdtDeposit > 100e6);
         vm.assume(usdtDeposit < 100_000_000e6);
@@ -322,7 +322,7 @@ contract TestFluxStrategy is BaseFixture {
     }
 
     /// @dev Case to check all 3crv is withdrewn from strategy in case all funds are pulled out
-    function testWithdrawAllFromStrategy(uint256 daiDeposit) public {
+    function testWithdrawAllFromStrategy(uint256 daiDeposit) private {
         vm.assume(daiDeposit > 100e18);
         vm.assume(daiDeposit < 100_000_000e18);
         depositIntoVault(alice, daiDeposit, 0);
@@ -343,7 +343,7 @@ contract TestFluxStrategy is BaseFixture {
         assertEq(gVault.realizedTotalAssets(), 0);
     }
 
-    function testWithdrawPartiallyFromStrategy(uint256 daiDeposit) public {
+    function testWithdrawPartiallyFromStrategy(uint256 daiDeposit) private {
         vm.assume(daiDeposit > 100e18);
         vm.assume(daiDeposit < 100_000_000e18);
         depositIntoVault(alice, daiDeposit, 0);
@@ -367,7 +367,7 @@ contract TestFluxStrategy is BaseFixture {
                         View function tests
     //////////////////////////////////////////////////////////////*/
     /// @dev case when there is profit to harvest and enough time passed
-    function testCanHarvestHappyProfit(uint256 daiDeposit) public {
+    function testCanHarvestHappyProfit(uint256 daiDeposit) private {
         vm.assume(daiDeposit > 10000e18);
         vm.assume(daiDeposit < 100_000_000e18);
         depositIntoVault(alice, daiDeposit, 0);
@@ -386,7 +386,7 @@ contract TestFluxStrategy is BaseFixture {
     }
 
     /// @dev case when there is loss to harvest and enough time passed
-    function testCanHarvestHappyLoss(uint256 daiDeposit) public {
+    function testCanHarvestHappyLoss(uint256 daiDeposit) private {
         vm.assume(daiDeposit > 200_000e18);
         vm.assume(daiDeposit < 100_000_000e18);
         depositIntoVault(alice, daiDeposit, 0);
@@ -400,7 +400,7 @@ contract TestFluxStrategy is BaseFixture {
     }
 
     /// @dev Should always harvest if too much time passed
-    function testCanHarvestTooMuchTimePassed(uint256 daiDeposit) public {
+    function testCanHarvestTooMuchTimePassed(uint256 daiDeposit) private {
         vm.assume(daiDeposit > 100e18);
         vm.assume(daiDeposit < 100_000_000e18);
         depositIntoVault(alice, daiDeposit, 0);
@@ -411,7 +411,7 @@ contract TestFluxStrategy is BaseFixture {
         assertTrue(daiStrategy.canHarvest());
     }
 
-    function testCanHarvestNotEnoughTimePassed(uint256 daiDeposit) public {
+    function testCanHarvestNotEnoughTimePassed(uint256 daiDeposit) private {
         vm.assume(daiDeposit > 100e18);
         vm.assume(daiDeposit < 100_000_000e18);
         depositIntoVault(alice, daiDeposit, 0);
@@ -431,7 +431,7 @@ contract TestFluxStrategy is BaseFixture {
     /*//////////////////////////////////////////////////////////////
                         Stop Loss
     //////////////////////////////////////////////////////////////*/
-    function testDAIShouldPullOutDuringStopLoss(uint256 daiDeposit) public {
+    function testDAIShouldPullOutDuringStopLoss(uint256 daiDeposit) private {
         vm.assume(daiDeposit > 100e18);
         vm.assume(daiDeposit < 100_000_000e18);
         depositIntoVault(address(this), daiDeposit, 0);
@@ -451,7 +451,7 @@ contract TestFluxStrategy is BaseFixture {
         daiStrategy.runHarvest();
     }
 
-    function testCanResumeAfterStopLoss(uint256 daiDeposit) public {
+    function testCanResumeAfterStopLoss(uint256 daiDeposit) private {
         vm.assume(daiDeposit > 100e18);
         vm.assume(daiDeposit < 100_000_000e18);
         depositIntoVault(address(this), daiDeposit, 0);
@@ -471,7 +471,7 @@ contract TestFluxStrategy is BaseFixture {
         assertGt(F_DAI.balanceOf(address(daiStrategy)), 0);
     }
 
-    function testUSDCShouldPullOutDuringStopLoss(uint256 usdcDeposit) public {
+    function testUSDCShouldPullOutDuringStopLoss(uint256 usdcDeposit) private {
         vm.assume(usdcDeposit > 100e6);
         vm.assume(usdcDeposit < 100_000_000e6);
         depositIntoVault(address(this), usdcDeposit, 1);
@@ -491,7 +491,7 @@ contract TestFluxStrategy is BaseFixture {
         usdcStrategy.runHarvest();
     }
 
-    function testUSDTShouldPullOutDuringStopLoss(uint256 usdtDeposit) public {
+    function testUSDTShouldPullOutDuringStopLoss(uint256 usdtDeposit) private {
         vm.assume(usdtDeposit > 100e6);
         vm.assume(usdtDeposit < 100_000_000e6);
         depositIntoVault(address(this), usdtDeposit, 2);
@@ -514,7 +514,7 @@ contract TestFluxStrategy is BaseFixture {
     /*//////////////////////////////////////////////////////////////
                         Emergency Mode
     //////////////////////////////////////////////////////////////*/
-    function testHarvestEmergency(uint256 daiDeposit) public {
+    function testHarvestEmergency(uint256 daiDeposit) private {
         // Give 3crv to vault:
         vm.assume(daiDeposit > 100e18);
         vm.assume(daiDeposit < 100_000_000e18);
