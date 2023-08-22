@@ -45,7 +45,7 @@ abstract contract BaseStrategy is IStrategy {
     uint256 public stopLossAttempts;
 
     uint256 internal profitThreshold = 20_000 * DEFAULT_DECIMALS_FACTOR;
-    uint256 internal debtThreshold = 20_000 * DEFAULT_DECIMALS_FACTOR;
+    uint256 internal debtThreshold = 5000 * DEFAULT_DECIMALS_FACTOR;
 
     /*//////////////////////////////////////////////////////////////
                                 EVENTS

@@ -385,6 +385,20 @@ contract TestFluxStrategy is BaseFixture {
         assertTrue(daiStrategy.canHarvest());
     }
 
+    /// @dev case when there is loss to harvest and enough time passed
+    function testCanHarvestHappyLoss(uint256 daiDeposit) public {
+        vm.assume(daiDeposit > 200_000e18);
+        vm.assume(daiDeposit < 100_000_000e18);
+        depositIntoVault(alice, daiDeposit, 0);
+        daiStrategy.runHarvest();
+
+        // Modify fTOKEN fex rate to simulate massive loss to make sure can harvest is true
+        setStorage(address(F_DAI), DAI.balanceOf.selector, address(DAI), 0);
+        // can harvest should be false as not enough time has passed
+        vm.warp(block.timestamp + daiStrategy.MIN_REPORT_DELAY() + 1);
+        assertTrue(daiStrategy.canHarvest());
+    }
+
     /// @dev Should always harvest if too much time passed
     function testCanHarvestTooMuchTimePassed(uint256 daiDeposit) public {
         vm.assume(daiDeposit > 100e18);
