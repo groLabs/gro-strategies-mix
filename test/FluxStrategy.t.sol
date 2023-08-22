@@ -386,6 +386,26 @@ contract TestFluxStrategy is BaseFixture {
         daiStrategy.runHarvest();
     }
 
+    function testCanResumeAfterStopLoss(uint256 daiDeposit) public {
+        vm.assume(daiDeposit > 100e18);
+        vm.assume(daiDeposit < 100_000_000e18);
+        depositIntoVault(address(this), daiDeposit, 0);
+        daiStrategy.runHarvest();
+        assertEq(THREE_POOL_TOKEN.balanceOf(address(daiStrategy)), 0);
+        // Now run stop loss
+        daiStrategy.stopLoss();
+        // Make sure all assets are pulled out
+        assertEq(F_DAI.balanceOf(address(daiStrategy)), 0);
+        // Make sure stop loss is active
+        assertEq(daiStrategy.stop(), true);
+
+        // Resume now and harvest
+        daiStrategy.resume();
+        daiStrategy.runHarvest();
+        // Check that assets are deposited back
+        assertGt(F_DAI.balanceOf(address(daiStrategy)), 0);
+    }
+
     function testUSDCShouldPullOutDuringStopLoss(uint256 usdcDeposit) public {
         vm.assume(usdcDeposit > 100e6);
         vm.assume(usdcDeposit < 100_000_000e6);
