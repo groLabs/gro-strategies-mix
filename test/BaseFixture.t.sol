@@ -71,7 +71,7 @@ contract BaseFixture is Test {
         uint256 _amount
     ) public returns (uint256 shares) {
         vm.prank(_user);
-        shares = gVault.redeem(_amount, _user, _user);
+        shares = gVault.withdraw(_amount, _user, _user);
     }
 
     function genThreeCrv(

@@ -369,8 +369,8 @@ contract TestFluxStrategy is BaseFixture {
     ) public {
         vm.assume(daiDeposit > 100e18);
         vm.assume(daiDeposit < 1_000_000e18);
-        uint256 aliceDAISnapshot = DAI.balanceOf(alice);
         depositIntoVault(alice, daiDeposit, 0);
+        uint256 alice3crvSnapshot = THREE_POOL_TOKEN.balanceOf(alice);
         depositIntoVault(bob, daiDeposit, 0);
         daiStrategy.runHarvest();
         usdcStrategy.runHarvest();
@@ -385,7 +385,7 @@ contract TestFluxStrategy is BaseFixture {
         daiStrategy.runHarvest();
         withdrawFromVault(alice, gVault.balanceOf(alice) / 2);
         // Make sure alice has half of the assets back plus profit
-        assertGt(DAI.balanceOf(alice), aliceDAISnapshot);
+        assertGt(THREE_POOL_TOKEN.balanceOf(alice), alice3crvSnapshot);
     }
 
     /// @dev Case when profit is realized and user withdraws and gets profit
@@ -394,7 +394,8 @@ contract TestFluxStrategy is BaseFixture {
         vm.assume(daiDeposit < 1_000_000e18);
         depositIntoVault(alice, daiDeposit, 0);
         // Consider that alice DAI balance is set to max in genThreeCrv() function
-        uint256 aliceDAISnapshot = type(uint256).max;
+        uint256 alice3crvSnapshot = THREE_POOL_TOKEN.balanceOf(alice);
+
         depositIntoVault(bob, daiDeposit, 0);
         daiStrategy.runHarvest();
         usdcStrategy.runHarvest();
@@ -410,7 +411,42 @@ contract TestFluxStrategy is BaseFixture {
         withdrawFromVault(alice, gVault.balanceOf(alice) / 2);
         assertGt(DAI.balanceOf(alice), 0);
         // Make sure alice has her assets back minus loss
-        assertGt(aliceDAISnapshot, DAI.balanceOf(alice));
+        assertGt(THREE_POOL_TOKEN.balanceOf(alice), alice3crvSnapshot);
+    }
+
+    /// @dev Invariant: Should always pull from strategy balance instead of divesting from Flux
+    function testWithdrawDirectlyFromStrategyBalance(
+        uint256 usdcDeposit
+    ) public {
+        vm.assume(usdcDeposit > 100e6);
+        vm.assume(usdcDeposit < 1_000_000e6);
+        depositIntoVault(alice, usdcDeposit, 1);
+        uint256 aliceUSDCSnapshot = USDC.balanceOf(alice);
+        uint256 alice3crvSnapshot = THREE_POOL_TOKEN.balanceOf(alice);
+        assertEq(aliceUSDCSnapshot, type(uint256).max - usdcDeposit);
+
+        depositIntoVault(bob, usdcDeposit, 1);
+        // Harvest all strategies to pull in assets from vault
+        daiStrategy.runHarvest();
+        usdcStrategy.runHarvest();
+        usdtStrategy.runHarvest();
+
+        // Make fusdc snapshot
+        uint256 fusdcSnapshot = F_USDC.balanceOf(address(usdcStrategy));
+
+        // Give strategy some loose 3crv token
+        setStorage(
+            address(usdcStrategy),
+            THREE_POOL_TOKEN.balanceOf.selector,
+            address(THREE_POOL_TOKEN),
+            100_000_000e18
+        );
+        uint256 aliceSnapshot = USDC.balanceOf(alice);
+        withdrawFromVault(alice, usdcDeposit);
+        // Make sure fusdc balance is the same as 3crv is withdrawn from strategy loose balance
+        assertEq(F_USDC.balanceOf(address(usdcStrategy)), fusdcSnapshot);
+        // Make sure alice has 3crv back
+        assertGt(THREE_POOL_TOKEN.balanceOf(alice), alice3crvSnapshot);
     }
 
     /*//////////////////////////////////////////////////////////////
