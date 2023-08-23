@@ -363,6 +363,35 @@ contract TestFluxStrategy is BaseFixture {
         );
     }
 
+    /// @dev Case when profit is realized and user withdraws and gets profit
+    function testWithdrawWithProfitMultipleDepositors(uint256 daiDeposit) public {
+        vm.assume(daiDeposit > 100e18);
+        vm.assume(daiDeposit < 1_000_000e18);
+        uint256 aliceDAISnapshot = DAI.balanceOf(alice);
+        depositIntoVault(alice, daiDeposit, 0);
+        depositIntoVault(bob, daiDeposit, 0);
+        daiStrategy.runHarvest();
+        usdcStrategy.runHarvest();
+        usdtStrategy.runHarvest();
+        // Modify fTOKEN fex rate to simulate profit
+        setStorage(
+            address(F_DAI),
+            DAI.balanceOf.selector,
+            address(DAI),
+            DAI.balanceOf(address(F_DAI)) * 100
+        );
+        daiStrategy.runHarvest();
+        withdrawFromVault(
+            alice,
+            gVault.balanceOf(alice) / 2
+        );
+        // Make sure alice has half of the assets back plus profit
+        assertGt(
+            DAI.balanceOf(alice),
+            aliceDAISnapshot
+        );
+    }
+
     /*//////////////////////////////////////////////////////////////
                         View function tests
     //////////////////////////////////////////////////////////////*/
