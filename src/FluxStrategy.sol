@@ -195,7 +195,7 @@ contract FluxStrategy is BaseStrategy {
             if (_amount <= balance) {
                 withdrawnAssets = _amount;
             } else {
-                withdrawnAssets = _divest(_amount - balance, false) + balance;
+                withdrawnAssets = _divest(_amount - balance, false);
                 if (withdrawnAssets <= _amount) {
                     loss += _amount - withdrawnAssets;
                 } else {

@@ -364,7 +364,9 @@ contract TestFluxStrategy is BaseFixture {
     }
 
     /// @dev Case when profit is realized and user withdraws and gets profit
-    function testWithdrawWithProfitMultipleDepositors(uint256 daiDeposit) public {
+    function testWithdrawWithProfitMultipleDepositors(
+        uint256 daiDeposit
+    ) public {
         vm.assume(daiDeposit > 100e18);
         vm.assume(daiDeposit < 1_000_000e18);
         uint256 aliceDAISnapshot = DAI.balanceOf(alice);
@@ -381,15 +383,34 @@ contract TestFluxStrategy is BaseFixture {
             DAI.balanceOf(address(F_DAI)) * 100
         );
         daiStrategy.runHarvest();
-        withdrawFromVault(
-            alice,
-            gVault.balanceOf(alice) / 2
-        );
+        withdrawFromVault(alice, gVault.balanceOf(alice) / 2);
         // Make sure alice has half of the assets back plus profit
-        assertGt(
-            DAI.balanceOf(alice),
-            aliceDAISnapshot
+        assertGt(DAI.balanceOf(alice), aliceDAISnapshot);
+    }
+
+    /// @dev Case when profit is realized and user withdraws and gets profit
+    function testWithdrawWithLossMultipleDepositors(uint256 daiDeposit) public {
+        vm.assume(daiDeposit > 100e18);
+        vm.assume(daiDeposit < 1_000_000e18);
+        depositIntoVault(alice, daiDeposit, 0);
+        // Consider that alice DAI balance is set to max in genThreeCrv() function
+        uint256 aliceDAISnapshot = type(uint256).max;
+        depositIntoVault(bob, daiDeposit, 0);
+        daiStrategy.runHarvest();
+        usdcStrategy.runHarvest();
+        usdtStrategy.runHarvest();
+        // Modify fTOKEN fex rate to simulate loss
+        setStorage(
+            address(F_DAI),
+            DAI.balanceOf.selector,
+            address(DAI),
+            DAI.balanceOf(address(F_DAI)) / 2
         );
+        daiStrategy.runHarvest();
+        withdrawFromVault(alice, gVault.balanceOf(alice) / 2);
+        assertGt(DAI.balanceOf(alice), 0);
+        // Make sure alice has her assets back minus loss
+        assertGt(aliceDAISnapshot, DAI.balanceOf(alice));
     }
 
     /*//////////////////////////////////////////////////////////////
