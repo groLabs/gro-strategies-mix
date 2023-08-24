@@ -441,8 +441,7 @@ contract TestFluxStrategy is BaseFixture {
             address(THREE_POOL_TOKEN),
             100_000_000e18
         );
-        uint256 aliceSnapshot = USDC.balanceOf(alice);
-        withdrawFromVault(alice, usdcDeposit);
+        withdrawFromVault(alice, gVault.balanceOf(alice));
         // Make sure fusdc balance is the same as 3crv is withdrawn from strategy loose balance
         assertEq(F_USDC.balanceOf(address(usdcStrategy)), fusdcSnapshot);
         // Make sure alice has 3crv back
