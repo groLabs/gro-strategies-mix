@@ -93,6 +93,16 @@ contract TestFluxStrategy is BaseFixture {
 
         // Check strategy owner
         assertEq(daiStrategy.owner(), address(this));
+
+        // Check vault address:
+        assertEq(daiStrategy.vault(), address(gVault));
+        assertEq(usdcStrategy.vault(), address(gVault));
+        assertEq(usdtStrategy.vault(), address(gVault));
+
+        // Metapool is 0 as a placeholder:
+        assertEq(daiStrategy.getMetaPool(), address(0));
+        assertEq(usdcStrategy.getMetaPool(), address(0));
+        assertEq(usdtStrategy.getMetaPool(), address(0));
     }
 
     /*//////////////////////////////////////////////////////////////
