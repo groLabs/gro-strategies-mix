@@ -105,6 +105,16 @@ contract TestFluxStrategy is BaseFixture {
         assertEq(usdtStrategy.getMetaPool(), address(0));
     }
 
+    /// @dev strategy can stop loss with stop loss being 0 addr should always return false
+    function testCanStopLossZeroAddr() public {
+        assertEq(daiStrategy.stopLossLogic(), address(0));
+        assertFalse(daiStrategy.canStopLoss());
+        assertEq(usdcStrategy.stopLossLogic(), address(0));
+        assertFalse(usdcStrategy.canStopLoss());
+        assertEq(usdtStrategy.stopLossLogic(), address(0));
+        assertFalse(usdtStrategy.canStopLoss());
+    }
+
     /*//////////////////////////////////////////////////////////////
                         Test Setters
     //////////////////////////////////////////////////////////////*/
