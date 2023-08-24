@@ -341,6 +341,9 @@ contract TestFluxStrategy is BaseFixture {
         assertGt(initVaultAssets, gVault.realizedTotalAssets());
     }
 
+    /*//////////////////////////////////////////////////////////////
+                        WIthdraw logic tests
+    //////////////////////////////////////////////////////////////*/
     /// @dev Case to check all 3crv is withdrewn from strategy in case all funds are pulled out
     function testWithdrawAllFromStrategy(uint256 daiDeposit) public {
         vm.assume(daiDeposit > 100e18);
@@ -402,7 +405,6 @@ contract TestFluxStrategy is BaseFixture {
             address(DAI),
             DAI.balanceOf(address(F_DAI)) * 100
         );
-        daiStrategy.runHarvest();
         withdrawFromVault(alice, gVault.balanceOf(alice) / 2);
         // Make sure alice has half of the assets back plus profit
         assertGt(THREE_POOL_TOKEN.balanceOf(alice), alice3crvSnapshot);
@@ -427,7 +429,6 @@ contract TestFluxStrategy is BaseFixture {
             address(DAI),
             DAI.balanceOf(address(F_DAI)) / 2
         );
-        daiStrategy.runHarvest();
         withdrawFromVault(alice, gVault.balanceOf(alice) / 2);
         assertGt(DAI.balanceOf(alice), 0);
         // Make sure alice has her assets back minus loss
