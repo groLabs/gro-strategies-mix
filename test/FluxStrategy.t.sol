@@ -448,6 +448,22 @@ contract TestFluxStrategy is BaseFixture {
         assertGt(THREE_POOL_TOKEN.balanceOf(alice), alice3crvSnapshot);
     }
 
+    function testStrategyWithdrawRevertIfCallerIsNotVault() public {
+        vm.startPrank(alice);
+        vm.expectRevert(
+            abi.encodeWithSelector(GenericStrategyErrors.NotVault.selector)
+        );
+        daiStrategy.withdraw(0);
+        vm.expectRevert(
+            abi.encodeWithSelector(GenericStrategyErrors.NotVault.selector)
+        );
+        usdcStrategy.withdraw(0);
+        vm.expectRevert(
+            abi.encodeWithSelector(GenericStrategyErrors.NotVault.selector)
+        );
+        usdtStrategy.withdraw(0);
+    }
+
     /*//////////////////////////////////////////////////////////////
                         View function tests
     //////////////////////////////////////////////////////////////*/
