@@ -305,6 +305,36 @@ contract TestFluxStrategy is BaseFixture {
         assertGt(initVaultAssets, gVault.realizedTotalAssets());
     }
 
+    function testStrategyHarvestDAIWithLossAndWithdraw(
+        uint256 daiDeposit
+    ) public {
+        // Give 3crv to vault:
+        vm.assume(daiDeposit > 100e18);
+        vm.assume(daiDeposit < 100_000_000e18);
+        depositIntoVault(address(alice), daiDeposit, 0);
+
+        daiStrategy.runHarvest();
+        uint256 initEstimatedAssets = daiStrategy.estimatedTotalAssets();
+        uint256 initVaultAssets = gVault.realizedTotalAssets();
+        // Modify fTOKEN fex rate to simulate major loss
+        setStorage(
+            address(F_DAI),
+            DAI.balanceOf.selector,
+            address(DAI),
+            DAI.balanceOf(address(F_DAI)) / 2
+        );
+        // Alice withdraws after major loss
+        withdrawFromVault(
+            alice,
+            gVault.convertToShares(gVault.realizedTotalAssets() / 2)
+        );
+        // Run harvest to realize loss
+        daiStrategy.runHarvest();
+
+        assertGt(initEstimatedAssets, daiStrategy.estimatedTotalAssets());
+        assertGt(initVaultAssets, gVault.realizedTotalAssets());
+    }
+
     function testStrategyHarvestUSDCWithLoss(uint256 usdcDeposit) public {
         // USDC has 6 decimals
         vm.assume(usdcDeposit > 100e6);

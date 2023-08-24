@@ -248,7 +248,7 @@ abstract contract BaseStrategy is IStrategy {
                         PERCENTAGE_DECIMAL_FACTOR;
                 }
                 if (profitToRepay + _excessDebt > balance) {
-                    balance += _divest(
+                    balance = _divest(
                         profitToRepay + _excessDebt - balance,
                         true
                     );
@@ -264,7 +264,7 @@ abstract contract BaseStrategy is IStrategy {
                 if (loss > _excessDebt) {
                     debtRepayment = 0;
                 } else if (balance < _excessDebt - loss) {
-                    balance += _divest(_excessDebt - loss - balance, true);
+                    balance = _divest(_excessDebt - loss - balance, true);
                     debtRepayment = balance;
                 } else {
                     debtRepayment = _excessDebt - loss;
