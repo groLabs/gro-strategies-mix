@@ -635,7 +635,8 @@ contract TestFluxStrategy is BaseFixture {
     /*//////////////////////////////////////////////////////////////
                         Emergency Mode
     //////////////////////////////////////////////////////////////*/
-    function testHarvestEmergency(uint256 daiDeposit) public {
+    /// @dev simulate harvest in emergency mode during harvest
+    function testHarvestEmergencyLoss(uint256 daiDeposit) public {
         // Give 3crv to vault:
         vm.assume(daiDeposit > 100e18);
         vm.assume(daiDeposit < 100_000_000e18);
@@ -646,6 +647,38 @@ contract TestFluxStrategy is BaseFixture {
 
         // Set emergency now and harvest
         daiStrategy.setEmergencyMode();
+        daiStrategy.runHarvest();
+
+        // Make sure all assets were pulled out
+        assertEq(THREE_POOL_TOKEN.balanceOf(address(daiStrategy)), 0);
+        assertEq(USDT.balanceOf(address(daiStrategy)), 0);
+        assertEq(F_USDT.balanceOf(address(daiStrategy)), 0);
+        // Make sure all 3crv was pulled out and is in the vault
+        assertEq(
+            THREE_POOL_TOKEN.balanceOf(address(gVault)),
+            gVault.totalAssets()
+        );
+    }
+
+    /// @dev same thing as above just to make sure we can handle profit in emergency mode
+    function testHarvestEmergencyProfit(uint256 daiDeposit) public {
+        // Give 3crv to vault:
+        vm.assume(daiDeposit > 100e18);
+        vm.assume(daiDeposit < 100_000_000e18);
+        depositIntoVault(address(this), daiDeposit, 0);
+        daiStrategy.runHarvest();
+
+        assertEq(THREE_POOL_TOKEN.balanceOf(address(daiStrategy)), 0);
+
+        // Set emergency now and harvest
+        daiStrategy.setEmergencyMode();
+        // Modify fTOKEN fex rate to simulate profit
+        setStorage(
+            address(F_DAI),
+            DAI.balanceOf.selector,
+            address(DAI),
+            DAI.balanceOf(address(F_DAI)) * 10
+        );
         daiStrategy.runHarvest();
 
         // Make sure all assets were pulled out

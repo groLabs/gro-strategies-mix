@@ -176,7 +176,7 @@ contract FluxStrategy is BaseStrategy {
         }
         (uint256 assets, uint256 balance, ) = _estimatedTotalAssets();
         uint256 debt = _gVault.getStrategyDebt();
-        // not enough assets to withdraw
+        // not enough assets to withdraw, so divest all and return what we have
         if (_amount >= assets && _amount == debt) {
             balance += _divestAll(false);
             if (_amount > balance) {
