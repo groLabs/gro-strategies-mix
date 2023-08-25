@@ -6,7 +6,6 @@ import "./interfaces/IFluxToken.sol";
 import "./interfaces/ICurve3Pool.sol";
 import {ERC20} from "../lib/solmate/src/tokens/ERC20.sol";
 import {SafeTransferLib} from "../lib/solmate/src/utils/SafeTransferLib.sol";
-import {console2} from "../lib/forge-std/src/console2.sol";
 
 library FluxIntegrationErrors {
     error MintFailed(); // 0x4e4f4e45
@@ -283,9 +282,6 @@ contract FluxStrategy is BaseStrategy {
                 // Calculate slippage in basis points
                 uint256 slippage = ((debt -
                     baseAsset.balanceOf(address(this))) * BASIS_POINTS) / debt;
-                console2.log("Slippage: %s", slippage);
-                console2.log("debt: %s", debt);
-                console2.log("3crv balance: %s", baseAsset.balanceOf(address(this)));
                 if (slippage > baseSlippage) {
                     revert GenericStrategyErrors.SlippageProtection();
                 }

@@ -603,17 +603,21 @@ contract TestFluxStrategy is BaseFixture {
         daiStrategy.runHarvest();
     }
 
+    /// @dev Slippage can happen when pool is imbalanced and strategy(on divest) will try to add liquidity
+    /// to the pool in the most popular asset in 3crv, which will result in slippage
     function testDAIShouldPullOutSlippageRevert(uint256 daiDeposit) public {
-        vm.assume(daiDeposit > 100_000_000_000e18);
-        vm.assume(daiDeposit < 100_000_000_000_000e18);
+        vm.assume(daiDeposit > 100e18);
+        vm.assume(daiDeposit < 100_000_000_000e18);
         depositIntoVault(address(this), daiDeposit, 0);
-        console2.log(DAI.balanceOf(address(THREE_POOL)));
-        genThreeCrv(100_000_000_000e18, address(this), 0);
-        console2.log(DAI.balanceOf(address(THREE_POOL)));
         daiStrategy.runHarvest();
 
-        // Manipulate 3pool to increase slippage
-        console2.log(DAI.balanceOf(address(THREE_POOL)));
+        // Create imbalance in pool by depositing more DAI
+        genThreeCrv(100_000_000_000_000e18, address(this), 0);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                GenericStrategyErrors.SlippageProtection.selector
+            )
+        );
         daiStrategy.stopLoss();
     }
 
