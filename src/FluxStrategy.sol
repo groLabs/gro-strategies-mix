@@ -6,7 +6,6 @@ import "./interfaces/IFluxToken.sol";
 import "./interfaces/ICurve3Pool.sol";
 import {ERC20} from "../lib/solmate/src/tokens/ERC20.sol";
 import {SafeTransferLib} from "../lib/solmate/src/utils/SafeTransferLib.sol";
-import {console2} from "../lib/forge-std/src/console2.sol";
 
 library FluxIntegrationErrors {
     error MintFailed(); // 0x4e4f4e45
@@ -67,12 +66,15 @@ contract FluxStrategy is BaseStrategy {
     uint256 public constant DAI_INDEX = 0;
     uint256 public constant USDC_INDEX = 1;
     uint256 public constant USDT_INDEX = 2;
+
+    uint256 public constant BASIS_POINTS = 10000;
     /*//////////////////////////////////////////////////////////////
                         STORAGE VARIABLES
     //////////////////////////////////////////////////////////////*/
     ERC20 internal immutable _underlyingAsset;
     IFluxToken public immutable _fToken;
     uint256 public immutable underlyingAssetIndex;
+    uint256 public baseSlippage = 10; // In basis points
 
     constructor(
         address _vault,
@@ -272,6 +274,22 @@ contract FluxStrategy is BaseStrategy {
             address(this)
         );
         THREE_POOL.add_liquidity(_amounts, 0);
+        if (_slippage) {
+            // Compare current debt to debt snapshot and check difference slippage,
+            // Then, if slippage is too high, revert
+            uint256 debt = _gVault.getStrategyDebt();
+            if (debt > baseAsset.balanceOf(address(this))) {
+                // Calculate slippage in basis points
+                uint256 slippage = ((debt -
+                    baseAsset.balanceOf(address(this))) * BASIS_POINTS) / debt;
+                console2.log("Slippage: %s", slippage);
+                console2.log("debt: %s", debt);
+                console2.log("3crv balance: %s", baseAsset.balanceOf(address(this)));
+                if (slippage > baseSlippage) {
+                    revert GenericStrategyErrors.SlippageProtection();
+                }
+            }
+        }
         // Return amount of 3crv that was divested
         return baseAsset.balanceOf(address(this));
     }

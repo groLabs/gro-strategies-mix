@@ -603,6 +603,20 @@ contract TestFluxStrategy is BaseFixture {
         daiStrategy.runHarvest();
     }
 
+    function testDAIShouldPullOutSlippageRevert(uint256 daiDeposit) public {
+        vm.assume(daiDeposit > 100_000_000_000e18);
+        vm.assume(daiDeposit < 100_000_000_000_000e18);
+        depositIntoVault(address(this), daiDeposit, 0);
+        console2.log(DAI.balanceOf(address(THREE_POOL)));
+        genThreeCrv(100_000_000_000e18, address(this), 0);
+        console2.log(DAI.balanceOf(address(THREE_POOL)));
+        daiStrategy.runHarvest();
+
+        // Manipulate 3pool to increase slippage
+        console2.log(DAI.balanceOf(address(THREE_POOL)));
+        daiStrategy.stopLoss();
+    }
+
     function testCanResumeAfterStopLoss(uint256 daiDeposit) public {
         vm.assume(daiDeposit > 100e18);
         vm.assume(daiDeposit < 100_000_000e18);
