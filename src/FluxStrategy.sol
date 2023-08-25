@@ -74,7 +74,6 @@ contract FluxStrategy is BaseStrategy {
     ERC20 internal immutable _underlyingAsset;
     IFluxToken public immutable _fToken;
     uint256 public immutable underlyingAssetIndex;
-    uint256 public baseSlippage = 10; // In basis points
 
     constructor(
         address _vault,
@@ -256,8 +255,21 @@ contract FluxStrategy is BaseStrategy {
         _amounts[underlyingAssetIndex] = _underlyingAsset.balanceOf(
             address(this)
         );
+        uint256 threeCurveSnapshotBalance = THREE_CRV.balanceOf(address(this));
         // Add liquidity to 3pool
         THREE_POOL.add_liquidity(_amounts, 0);
+        if (_slippage) {
+            if (
+                _debt >
+                baseAsset.balanceOf(address(this)) - threeCurveSnapshotBalance
+            ) {
+                uint256 slippage = ((_debt -
+                    baseAsset.balanceOf(address(this))) * BASIS_POINTS) / _debt;
+                if (slippage > baseSlippage) {
+                    revert GenericStrategyErrors.SlippageProtection();
+                }
+            }
+        }
         return baseAsset.balanceOf(address(this));
     }
 
@@ -273,12 +285,17 @@ contract FluxStrategy is BaseStrategy {
         _amounts[underlyingAssetIndex] = _underlyingAsset.balanceOf(
             address(this)
         );
+        uint256 threeCurveSnapshotBalance = THREE_CRV.balanceOf(address(this));
         THREE_POOL.add_liquidity(_amounts, 0);
         if (_slippage) {
             // Compare current debt to debt snapshot and check difference slippage,
             // Then, if slippage is too high, revert
             uint256 debt = _gVault.getStrategyDebt();
-            if (debt > baseAsset.balanceOf(address(this))) {
+            // If there is profit and we are not in emergency mode, we can allow for some positive slippage
+            if (
+                debt >
+                baseAsset.balanceOf(address(this)) - threeCurveSnapshotBalance
+            ) {
                 // Calculate slippage in basis points
                 uint256 slippage = ((debt -
                     baseAsset.balanceOf(address(this))) * BASIS_POINTS) / debt;

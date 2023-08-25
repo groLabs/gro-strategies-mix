@@ -103,6 +103,10 @@ contract TestFluxStrategy is BaseFixture {
         assertEq(daiStrategy.getMetaPool(), address(0));
         assertEq(usdcStrategy.getMetaPool(), address(0));
         assertEq(usdtStrategy.getMetaPool(), address(0));
+
+        // Set slippage and check it
+        daiStrategy.setSlippage(100);
+        assertEq(daiStrategy.baseSlippage(), 100);
     }
 
     /// @dev strategy can stop loss with stop loss being 0 addr should always return false
