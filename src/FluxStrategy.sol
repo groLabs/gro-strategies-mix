@@ -244,7 +244,7 @@ contract FluxStrategy is BaseStrategy {
             int128(int256(underlyingAssetIndex))
         );
         if (_slippage) {
-            // In case it's USDC or USDT, need to convert estimatedUnderlyingValue to 6 decimals
+            // In case it's USDC or USDT, need to convert estimatedUnderlyingValue to 18 decimals
             uint256 _underlyingScaled = estimatedUnderlyingValue;
             if (address(_underlyingAsset) != DAI) {
                 _underlyingScaled =
