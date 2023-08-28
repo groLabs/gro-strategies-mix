@@ -47,7 +47,7 @@ abstract contract BaseStrategy is IStrategy {
     uint256 internal profitThreshold = 20_000 * DEFAULT_DECIMALS_FACTOR;
     uint256 internal debtThreshold = 5000 * DEFAULT_DECIMALS_FACTOR;
 
-    uint256 public baseSlippage = 10; // In basis points
+    uint256 public fullDivestSlippage = 10; // In basis points
     uint256 public partialDivestSlippage = 10; // In basis points
     /*//////////////////////////////////////////////////////////////
                                 EVENTS
@@ -69,7 +69,8 @@ abstract contract BaseStrategy is IStrategy {
 
     event NewKeeper(address indexed keeper);
     event EmergencyModeSet(bool mode);
-    event SlippageSet(uint256 slippage);
+    event FullDivestSlippageSet(uint256 slippage);
+    event PartialDivestSlippageSet(uint256 slippage);
 
     /*//////////////////////////////////////////////////////////////
                         VIEW FUNCTIONS
@@ -143,10 +144,19 @@ abstract contract BaseStrategy is IStrategy {
         emit LogNewStopLoss(_newStopLoss);
     }
 
-    function setSlippage(uint256 _slippage) external {
+    /// @notice Set new slippage
+    function setFullDivestSlippage(uint256 _slippage) external {
         if (msg.sender != owner) revert GenericStrategyErrors.NotOwner();
-        baseSlippage = _slippage;
-        emit SlippageSet(_slippage);
+        fullDivestSlippage = _slippage;
+        emit FullDivestSlippageSet(_slippage);
+    }
+
+    /// @notice Set new partial divest slippage
+    /// @param _slippage New slippage
+    function setPartialDivestSlippage(uint256 _slippage) external {
+        if (msg.sender != owner) revert GenericStrategyErrors.NotOwner();
+        partialDivestSlippage = _slippage;
+        emit PartialDivestSlippageSet(_slippage);
     }
 
     /// @notice Add keeper from the strategy

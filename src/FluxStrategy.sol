@@ -307,7 +307,7 @@ contract FluxStrategy is BaseStrategy {
                 // Calculate slippage in basis points
                 uint256 slippage = ((debt -
                     baseAsset.balanceOf(address(this))) * BASIS_POINTS) / debt;
-                if (slippage > baseSlippage) {
+                if (slippage > fullDivestSlippage) {
                     revert GenericStrategyErrors.SlippageProtection();
                 }
             }
