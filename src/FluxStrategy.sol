@@ -243,9 +243,6 @@ contract FluxStrategy is BaseStrategy {
             _debt,
             int128(int256(underlyingAssetIndex))
         );
-        // Now convert to fToken
-        uint256 fTokensToRedeem = (estimatedUnderlyingValue * DECIMALS_FACTOR) /
-            _fToken.exchangeRateStored();
         if (_slippage) {
             // In case it's USDC or USDT, need to convert estimatedUnderlyingValue to 6 decimals
             uint256 _underlyingScaled = estimatedUnderlyingValue;
@@ -266,6 +263,9 @@ contract FluxStrategy is BaseStrategy {
                 }
             }
         }
+        // Now convert to fToken
+        uint256 fTokensToRedeem = (estimatedUnderlyingValue * DECIMALS_FACTOR) /
+            _fToken.exchangeRateStored();
         uint256 success = _fToken.redeem(fTokensToRedeem);
         if (success != 0) revert FluxIntegrationErrors.RedeemFailed();
 

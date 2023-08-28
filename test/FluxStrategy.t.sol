@@ -629,36 +629,36 @@ contract TestFluxStrategy is BaseFixture {
         daiStrategy.stopLoss();
     }
 
-    //    function testDAIHarvestDivestAndSlippageRevert(uint256 daiDeposit) public {
-    //        vm.assume(daiDeposit > 100e18);
-    //        vm.assume(daiDeposit < 100_000_000_000e18);
-    //        // Set debt ratios as 20% for each strategy
-    //        gVault.setDebtRatio(address(daiStrategy), 2000);
-    //        gVault.setDebtRatio(address(usdcStrategy), 2000);
-    //        gVault.setDebtRatio(address(usdtStrategy), 2000);
-    //        depositIntoVault(address(this), daiDeposit, 0);
-    //
-    //        daiStrategy.runHarvest();
-    //        usdcStrategy.runHarvest();
-    //        usdtStrategy.runHarvest();
-    //        // Withdraw from vault to create debt in strategies
-    //        withdrawFromVault(address(this), gVault.balanceOf(address(this)) / 5);
-    //        // Create imbalance in pool by depositing more DAI
-    //        genThreeCrv(100_000_000_000e18, address(this), 0);
-    //        // Modify fTOKEN fex rate to simulate profit
-    //        setStorage(
-    //            address(F_DAI),
-    //            DAI.balanceOf.selector,
-    //            address(DAI),
-    //            DAI.balanceOf(address(F_DAI)) * 10
-    //        );
-    //        vm.expectRevert(
-    //            abi.encodeWithSelector(
-    //                GenericStrategyErrors.SlippageProtection.selector
-    //            )
-    //        );
-    //        daiStrategy.runHarvest();
-    //    }
+    function testDAIHarvestDivestAndSlippageRevert(uint256 daiDeposit) public {
+        vm.assume(daiDeposit > 100e18);
+        vm.assume(daiDeposit < 100_000_000_000e18);
+        // Set debt ratios as 20% for each strategy
+        gVault.setDebtRatio(address(daiStrategy), 2000);
+        gVault.setDebtRatio(address(usdcStrategy), 2000);
+        gVault.setDebtRatio(address(usdtStrategy), 2000);
+        depositIntoVault(address(this), daiDeposit, 0);
+
+        daiStrategy.runHarvest();
+        usdcStrategy.runHarvest();
+        usdtStrategy.runHarvest();
+        // Withdraw from vault to create debt in strategies
+        withdrawFromVault(address(this), gVault.balanceOf(address(this)) / 5);
+        // Create imbalance in pool by depositing more non-DAI assets
+        genThreeCrv(2_000_000_000_000e6, address(this), 1);
+        // Modify fTOKEN fex rate to simulate profit
+        setStorage(
+            address(F_DAI),
+            DAI.balanceOf.selector,
+            address(DAI),
+            DAI.balanceOf(address(F_DAI)) * 2
+        );
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                GenericStrategyErrors.SlippageProtection.selector
+            )
+        );
+        daiStrategy.runHarvest();
+    }
 
     function testCanResumeAfterStopLoss(uint256 daiDeposit) public {
         vm.assume(daiDeposit > 100e18);
