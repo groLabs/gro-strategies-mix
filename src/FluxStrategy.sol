@@ -6,7 +6,6 @@ import "./interfaces/IFluxToken.sol";
 import "./interfaces/ICurve3Pool.sol";
 import {ERC20} from "../lib/solmate/src/tokens/ERC20.sol";
 import {SafeTransferLib} from "../lib/solmate/src/utils/SafeTransferLib.sol";
-import {console2} from "../lib/forge-std/src/console2.sol";
 
 library FluxIntegrationErrors {
     error MintFailed(); // 0x4e4f4e45
@@ -67,6 +66,8 @@ contract FluxStrategy is BaseStrategy {
     uint256 public constant DAI_INDEX = 0;
     uint256 public constant USDC_INDEX = 1;
     uint256 public constant USDT_INDEX = 2;
+
+    uint256 public constant BASIS_POINTS = 10000;
     /*//////////////////////////////////////////////////////////////
                         STORAGE VARIABLES
     //////////////////////////////////////////////////////////////*/
@@ -242,6 +243,26 @@ contract FluxStrategy is BaseStrategy {
             _debt,
             int128(int256(underlyingAssetIndex))
         );
+        if (_slippage) {
+            // In case it's USDC or USDT, need to convert estimatedUnderlyingValue to 18 decimals
+            uint256 _underlyingScaled = estimatedUnderlyingValue;
+            if (address(_underlyingAsset) != DAI) {
+                _underlyingScaled =
+                    (estimatedUnderlyingValue * DEFAULT_DECIMALS_FACTOR) /
+                    10 ** _underlyingAsset.decimals();
+            }
+            // Convert withdrawn stablecoin to 3crv using get virtual price as it cannot be manipulated easily
+            uint256 _estimated3crv = (_underlyingScaled *
+                DEFAULT_DECIMALS_FACTOR) / THREE_POOL.get_virtual_price();
+            if (_estimated3crv > _debt) {
+                // Calculate slippage in basis points
+                uint256 slippage = ((_estimated3crv - _debt) * BASIS_POINTS) /
+                    _estimated3crv;
+                if (slippage > partialDivestSlippage) {
+                    revert GenericStrategyErrors.SlippageProtection();
+                }
+            }
+        }
         // Now convert to fToken
         uint256 fTokensToRedeem = (estimatedUnderlyingValue * DECIMALS_FACTOR) /
             _fToken.exchangeRateStored();
@@ -254,6 +275,7 @@ contract FluxStrategy is BaseStrategy {
         _amounts[underlyingAssetIndex] = _underlyingAsset.balanceOf(
             address(this)
         );
+        uint256 threeCurveSnapshotBalance = THREE_CRV.balanceOf(address(this));
         // Add liquidity to 3pool
         THREE_POOL.add_liquidity(_amounts, 0);
         return baseAsset.balanceOf(address(this));
@@ -271,7 +293,25 @@ contract FluxStrategy is BaseStrategy {
         _amounts[underlyingAssetIndex] = _underlyingAsset.balanceOf(
             address(this)
         );
+        uint256 threeCurveSnapshotBalance = THREE_CRV.balanceOf(address(this));
         THREE_POOL.add_liquidity(_amounts, 0);
+        if (_slippage) {
+            // Compare current debt to debt snapshot and check difference slippage,
+            // Then, if slippage is too high, revert
+            uint256 debt = _gVault.getStrategyDebt();
+            // If there is profit and we are not in emergency mode, we can allow for some positive slippage
+            if (
+                debt >
+                baseAsset.balanceOf(address(this)) - threeCurveSnapshotBalance
+            ) {
+                // Calculate slippage in basis points
+                uint256 slippage = ((debt -
+                    baseAsset.balanceOf(address(this))) * BASIS_POINTS) / debt;
+                if (slippage > fullDivestSlippage) {
+                    revert GenericStrategyErrors.SlippageProtection();
+                }
+            }
+        }
         // Return amount of 3crv that was divested
         return baseAsset.balanceOf(address(this));
     }

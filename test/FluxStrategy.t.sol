@@ -103,6 +103,14 @@ contract TestFluxStrategy is BaseFixture {
         assertEq(daiStrategy.getMetaPool(), address(0));
         assertEq(usdcStrategy.getMetaPool(), address(0));
         assertEq(usdtStrategy.getMetaPool(), address(0));
+
+        // Set slippage and check it
+        daiStrategy.setPartialDivestSlippage(100);
+        assertEq(daiStrategy.partialDivestSlippage(), 100);
+
+        // Set full divest slippage and check it
+        daiStrategy.setFullDivestSlippage(1001);
+        assertEq(daiStrategy.fullDivestSlippage(), 1001);
     }
 
     /// @dev strategy can stop loss with stop loss being 0 addr should always return false
@@ -600,6 +608,85 @@ contract TestFluxStrategy is BaseFixture {
         vm.expectRevert(
             abi.encodeWithSelector(GenericStrategyErrors.Stopped.selector)
         );
+        daiStrategy.runHarvest();
+    }
+
+    /// @dev Slippage can happen when pool is imbalanced and strategy(on divest) will try to add liquidity
+    /// to the pool in the most popular asset in 3crv, which will result in slippage
+    function testDAIShouldPullOutSlippageRevert(uint256 daiDeposit) public {
+        vm.assume(daiDeposit > 100e18);
+        vm.assume(daiDeposit < 100_000_000_000e18);
+        depositIntoVault(address(this), daiDeposit, 0);
+        daiStrategy.runHarvest();
+
+        // Create imbalance in pool by depositing more DAI
+        genThreeCrv(100_000_000_000_000e18, address(this), 0);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                GenericStrategyErrors.SlippageProtection.selector
+            )
+        );
+        daiStrategy.stopLoss();
+    }
+
+    function testDAIHarvestDivestAndSlippageRevert(uint256 daiDeposit) public {
+        vm.assume(daiDeposit > 100e18);
+        vm.assume(daiDeposit < 100_000_000e18);
+        // Set debt ratios as 20% for each strategy
+        gVault.setDebtRatio(address(daiStrategy), 2000);
+        gVault.setDebtRatio(address(usdcStrategy), 2000);
+        gVault.setDebtRatio(address(usdtStrategy), 2000);
+        depositIntoVault(address(this), daiDeposit, 0);
+
+        daiStrategy.runHarvest();
+        usdcStrategy.runHarvest();
+        usdtStrategy.runHarvest();
+        // Withdraw from vault to create debt in strategies
+        withdrawFromVault(address(this), gVault.balanceOf(address(this)) / 10);
+        // Create imbalance in pool by depositing more DAI assets
+        genThreeCrv(2_000_000_000e18, address(this), 0);
+        // Modify fTOKEN fex rate to simulate profit
+        setStorage(
+            address(F_DAI),
+            DAI.balanceOf.selector,
+            address(DAI),
+            DAI.balanceOf(address(F_DAI)) * 2
+        );
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                GenericStrategyErrors.SlippageProtection.selector
+            )
+        );
+        daiStrategy.runHarvest();
+    }
+
+    function testDAIHarvestDivestAndSlippageShouldntRevert(
+        uint256 daiDeposit
+    ) public {
+        vm.assume(daiDeposit > 100e18);
+        vm.assume(daiDeposit < 100_000_000e18);
+        // Set debt ratios as 20% for each strategy
+        gVault.setDebtRatio(address(daiStrategy), 2000);
+        gVault.setDebtRatio(address(usdcStrategy), 2000);
+        gVault.setDebtRatio(address(usdtStrategy), 2000);
+        depositIntoVault(address(this), daiDeposit, 0);
+
+        daiStrategy.runHarvest();
+        usdcStrategy.runHarvest();
+        usdtStrategy.runHarvest();
+        // Withdraw from vault to create debt in strategies
+        withdrawFromVault(address(this), gVault.balanceOf(address(this)) / 10);
+        // Create imbalance in pool by depositing more DAI assets
+        genThreeCrv(2_000_000_000e6, address(this), 1);
+        genThreeCrv(2_000_000_000e6, address(this), 2);
+        // Modify fTOKEN fex rate to simulate profit
+        setStorage(
+            address(F_DAI),
+            DAI.balanceOf.selector,
+            address(DAI),
+            DAI.balanceOf(address(F_DAI)) * 2
+        );
+
         daiStrategy.runHarvest();
     }
 
