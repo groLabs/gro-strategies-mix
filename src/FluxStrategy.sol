@@ -246,6 +246,26 @@ contract FluxStrategy is BaseStrategy {
         // Now convert to fToken
         uint256 fTokensToRedeem = (estimatedUnderlyingValue * DECIMALS_FACTOR) /
             _fToken.exchangeRateStored();
+        if (_slippage) {
+            // In case it's USDC or USDT, need to convert estimatedUnderlyingValue to 6 decimals
+            uint256 _underlyingScaled = estimatedUnderlyingValue;
+            if (address(_underlyingAsset) != DAI) {
+                _underlyingScaled =
+                    (estimatedUnderlyingValue * DEFAULT_DECIMALS_FACTOR) /
+                    _underlyingAsset.decimals();
+            }
+            // Convert withdrawn stablecoin to 3crv using get virtual price as it cannot be manipulated easily
+            uint256 _estimated3crv = (_underlyingScaled *
+                DEFAULT_DECIMALS_FACTOR) / THREE_POOL.get_virtual_price();
+            if (_debt > _estimated3crv) {
+                // Calculate slippage in basis points
+                uint256 slippage = ((_debt - _estimated3crv) * BASIS_POINTS) /
+                    _debt;
+                if (slippage > partialDivestSlippage) {
+                    revert GenericStrategyErrors.SlippageProtection();
+                }
+            }
+        }
         uint256 success = _fToken.redeem(fTokensToRedeem);
         if (success != 0) revert FluxIntegrationErrors.RedeemFailed();
 
@@ -258,18 +278,6 @@ contract FluxStrategy is BaseStrategy {
         uint256 threeCurveSnapshotBalance = THREE_CRV.balanceOf(address(this));
         // Add liquidity to 3pool
         THREE_POOL.add_liquidity(_amounts, 0);
-        if (_slippage) {
-            if (
-                _debt >
-                baseAsset.balanceOf(address(this)) - threeCurveSnapshotBalance
-            ) {
-                uint256 slippage = ((_debt -
-                    baseAsset.balanceOf(address(this))) * BASIS_POINTS) / _debt;
-                if (slippage > baseSlippage) {
-                    revert GenericStrategyErrors.SlippageProtection();
-                }
-            }
-        }
         return baseAsset.balanceOf(address(this));
     }
 

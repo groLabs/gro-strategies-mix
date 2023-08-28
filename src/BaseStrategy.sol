@@ -48,6 +48,7 @@ abstract contract BaseStrategy is IStrategy {
     uint256 internal debtThreshold = 5000 * DEFAULT_DECIMALS_FACTOR;
 
     uint256 public baseSlippage = 10; // In basis points
+    uint256 public partialDivestSlippage = 10; // In basis points
     /*//////////////////////////////////////////////////////////////
                                 EVENTS
     //////////////////////////////////////////////////////////////*/
