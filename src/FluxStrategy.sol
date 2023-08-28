@@ -249,7 +249,7 @@ contract FluxStrategy is BaseStrategy {
             if (address(_underlyingAsset) != DAI) {
                 _underlyingScaled =
                     (estimatedUnderlyingValue * DEFAULT_DECIMALS_FACTOR) /
-                    _underlyingAsset.decimals();
+                    10 ** _underlyingAsset.decimals();
             }
             // Convert withdrawn stablecoin to 3crv using get virtual price as it cannot be manipulated easily
             uint256 _estimated3crv = (_underlyingScaled *
