@@ -254,10 +254,10 @@ contract FluxStrategy is BaseStrategy {
             // Convert withdrawn stablecoin to 3crv using get virtual price as it cannot be manipulated easily
             uint256 _estimated3crv = (_underlyingScaled *
                 DEFAULT_DECIMALS_FACTOR) / THREE_POOL.get_virtual_price();
-            if (_debt > _estimated3crv) {
+            if (_estimated3crv > _debt) {
                 // Calculate slippage in basis points
-                uint256 slippage = ((_debt - _estimated3crv) * BASIS_POINTS) /
-                    _debt;
+                uint256 slippage = ((_estimated3crv - _debt) * BASIS_POINTS) /
+                    _estimated3crv;
                 if (slippage > partialDivestSlippage) {
                     revert GenericStrategyErrors.SlippageProtection();
                 }
