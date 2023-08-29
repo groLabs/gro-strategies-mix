@@ -139,6 +139,10 @@ abstract contract BaseStrategy is IStrategy {
     //////////////////////////////////////////////////////////////*/
     /// @notice Set new stop loss logic
     function setStopLossLogic(address _newStopLoss) external {
+        require(
+            _newStopLoss.isContract(),
+            "Stop loss address is not a contract"
+        );
         if (msg.sender != owner) revert GenericStrategyErrors.NotOwner();
         stopLossLogic = _newStopLoss;
         emit LogNewStopLoss(_newStopLoss);

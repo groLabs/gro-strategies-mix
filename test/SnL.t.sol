@@ -58,6 +58,17 @@ contract TestFluxSnL is BaseFixture {
         usdtStrategy.setStopLossLogic(address(snl));
     }
 
+    function testSetInvalidSnL() public {
+        vm.expectRevert("Stop loss address is not a contract");
+        daiStrategy.setStopLossLogic(address(0));
+    }
+
+    function testSetValidSnL() public {
+        StopLoss newSnl = new StopLoss(address(gVault));
+        daiStrategy.setStopLossLogic(address(newSnl));
+        assertEq(daiStrategy.stopLossLogic(), address(newSnl));
+    }
+
     function testSimpleSnLProfitScenarioDAI(uint256 daiDeposit) public {
         vm.assume(daiDeposit > 100e18);
         vm.assume(daiDeposit < 100_000_000e18);
