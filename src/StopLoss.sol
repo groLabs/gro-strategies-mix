@@ -6,7 +6,7 @@ import "./interfaces/IStrategy.sol";
 import "./external/GVault.sol";
 import {Owned} from "../lib/solmate/src/auth/Owned.sol";
 
-contract FluxSnL is IStop, Owned {
+contract StopLoss is IStop, Owned {
     GVault public gVault;
 
     uint256 public snLThreshold = 10; // In basis points
