@@ -12,8 +12,15 @@ contract StopLoss is IStop, Owned {
     uint256 public snLThreshold = 10; // In basis points
     uint256 public constant BPS = 10000;
 
+    event SnLThresholdSet(uint256 _snLThreshold);
+
     constructor(address _gVault) Owned(msg.sender) {
         gVault = GVault(_gVault);
+    }
+
+    function setSnlThreshold(uint256 _snLThreshold) external onlyOwner {
+        snLThreshold = _snLThreshold;
+        emit SnLThresholdSet(_snLThreshold);
     }
 
     /**

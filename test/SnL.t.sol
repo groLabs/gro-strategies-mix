@@ -69,6 +69,11 @@ contract TestFluxSnL is BaseFixture {
         assertEq(daiStrategy.stopLossLogic(), address(newSnl));
     }
 
+    function testSetSnlTrheshold() public {
+        snl.setSnlThreshold(100);
+        assertEq(snl.snLThreshold(), 100);
+    }
+
     function testSimpleSnLProfitScenarioDAI(uint256 daiDeposit) public {
         vm.assume(daiDeposit > 100e18);
         vm.assume(daiDeposit < 100_000_000e18);
