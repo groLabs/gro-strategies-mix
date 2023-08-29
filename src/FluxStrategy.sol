@@ -275,7 +275,6 @@ contract FluxStrategy is BaseStrategy {
         _amounts[underlyingAssetIndex] = _underlyingAsset.balanceOf(
             address(this)
         );
-        uint256 threeCurveSnapshotBalance = THREE_CRV.balanceOf(address(this));
         // Add liquidity to 3pool
         THREE_POOL.add_liquidity(_amounts, 0);
         return baseAsset.balanceOf(address(this));

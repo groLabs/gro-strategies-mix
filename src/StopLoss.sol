@@ -7,7 +7,7 @@ import "./external/GVault.sol";
 import {Owned} from "../lib/solmate/src/auth/Owned.sol";
 
 contract StopLoss is IStop, Owned {
-    GVault public gVault;
+    GVault public immutable gVault;
 
     uint256 public snLThreshold = 10; // In basis points
     uint256 public constant BPS = 10000;

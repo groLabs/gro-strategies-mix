@@ -102,4 +102,26 @@ contract TestFluxSnL is BaseFixture {
         // stop loss should be triggered with loss
         assertTrue(daiStrategy.canStopLoss());
     }
+
+    function testSimpleSnLLossScenarioUSDC(uint256 usdcDeposit) public {
+        vm.assume(usdcDeposit > 100e6);
+        vm.assume(usdcDeposit < 100_000_000e6);
+        depositIntoVault(address(this), usdcDeposit, 1);
+        usdcStrategy.runHarvest();
+
+        // Modify fTOKEN fex rate to simulate loss
+        setStorage(address(F_USDC), USDC.balanceOf.selector, address(USDC), 0);
+        assertTrue(usdcStrategy.canStopLoss());
+    }
+
+    function testSimpleSnLLossScenarioUSDT(uint256 usdtDeposit) public {
+        vm.assume(usdtDeposit > 100e6);
+        vm.assume(usdtDeposit < 100_000_000e6);
+        depositIntoVault(address(this), usdtDeposit, 2);
+        usdtStrategy.runHarvest();
+
+        // Modify fTOKEN fex rate to simulate loss
+        setStorage(address(F_USDT), USDT.balanceOf.selector, address(USDT), 0);
+        assertTrue(usdtStrategy.canStopLoss());
+    }
 }
