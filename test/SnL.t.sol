@@ -63,6 +63,15 @@ contract TestFluxSnL is BaseFixture {
         daiStrategy.setStopLossLogic(address(0));
     }
 
+    function testSetSnLNotOwner() public {
+        vm.startPrank(alice);
+        vm.expectRevert(
+            abi.encodeWithSelector(GenericStrategyErrors.NotOwner.selector)
+        );
+        daiStrategy.setStopLossLogic(address(snl));
+        vm.stopPrank();
+    }
+
     function testSetValidSnL() public {
         StopLoss newSnl = new StopLoss(address(gVault));
         daiStrategy.setStopLossLogic(address(newSnl));
