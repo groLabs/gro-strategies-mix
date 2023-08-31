@@ -26,3 +26,22 @@ $ forge test --fork-url ${{ env.ALCHEMY_RPC_URL }} --fork-block-number XXX -vv
 ## List of strategies:
 
 ## Flux Strategy
+Fkux strategy is operating on top of the Flux Protocol: https://fluxfinance.com/
+
+Flux allows us to lend stablecoins and generate some yield on that
+
+### How does it work in the context of GSquared protocol?
+
+Once strategy is added into GVault strategies, debtRatio is set, it can start harvesting yield. 
+
+Now, let's get a closer look on how harvest happens:
+This is the [entrypoint](https://github.com/groLabs/gro-strategies-mix/blob/main/src/FluxStrategy.sol#L131) to the harvest. What it does:
+1. Pulls out assets from GVault which are denominated in 3CRV
+2. Withdraws USDC/USDT/DAI from 3CRV pool, effectively exchanging 3crv to any of those stables
+3. And calls `.mint()` on corresponding fToken from Flux Finance protocol
+
+For any other consequent harvest it:
+- Compares invested assets from Flux protocol to the strategy debt snapshot in GVault
+- Report back profit or loss to GVault
+- Divest assets from Flux to return back to gVault
+- Invest loose assets back into Flux to farm more yield
