@@ -23,30 +23,31 @@ $ forge test --fork-url ${{ env.ALCHEMY_RPC_URL }} --fork-block-number XXX -vv
 
 ---
 
-## List of strategies:
-
+## List of strategies
 ## Flux Strategy
-Fkux strategy is operating on top of the Flux Protocol: https://fluxfinance.com/
+The Flux strategy operates on top of the Flux Protocol: https://fluxfinance.com/
 
-Flux allows us to lend stablecoins and generate some yield on that
+Flux allows us to lend stablecoins and generate some yield.
 
-### How does it work in the context of GSquared protocol?
+### How does it work in the context of the GSquared protocol?
+Once the strategy is added to the GVault strategies and the debtRatio is set, it can start harvesting yield.
 
-Once strategy is added into GVault strategies, debtRatio is set, it can start harvesting yield. 
+Now, let's take a closer look at how the harvest happens. This is the entrypoint for the harvest. Here's what it does:
 
-Now, let's get a closer look on how harvest happens:
-This is the [entrypoint](https://github.com/groLabs/gro-strategies-mix/blob/main/src/FluxStrategy.sol#L131) to the harvest. What it does:
-1. Pulls out assets from GVault which are denominated in 3CRV
-2. Withdraws USDC/USDT/DAI from 3CRV pool, effectively exchanging 3crv to any of those stables
-3. And calls `.mint()` on corresponding fToken from Flux Finance protocol
+- Pulls out assets from GVault denominated in 3CRV.
+- Withdraws USDC/USDT/DAI from the 3CRV pool, effectively exchanging 3crv for any of those stablecoins.
+- Calls .mint() on the corresponding fToken from the Flux Finance protocol.
 
-For any other consequent harvest it:
-- Compares invested assets from Flux protocol to the strategy debt snapshot in GVault
-- Report back profit or loss to GVault
-- Divest assets from Flux to return back to gVault
-- Invest loose assets back into Flux to farm more yield
+For any subsequent harvests, it:
+- Compares the invested assets from the Flux protocol to the strategy debt snapshot in GVault.
+- Reports back profit or loss to GVault.
+- Divests assets from Flux to return back to GVvault.
+- Reinvests loose assets back into Flux to farm more yield.
 
-### How does strategy estimate it's current assets ?
-- Fetch current fToken balance of the strategy
-- Multiply it by fToken exchange rate stored in same f token contract to get approx amount of USDC/USDT/DAI invested into fToken
-- Use `calc_token_amount` from 3CRV pool to calculate estimate of 3crv token we can obtain by depositing stablecoin amount from previous step
+### How does the strategy estimate its current assets?
+
+The strategy estimates its current assets as follows:
+
+- Fetch the current fToken balance of the strategy.
+-  Multiply it by the fToken exchange rate stored in the same fToken contract to get an approximate amount of USDC/USDT/DAI invested into the fToken.
+- Use calc_token_amount from the 3CRV pool to calculate an estimate of the 3crv tokens we can obtain by depositing the stablecoin amount from the previous step.
