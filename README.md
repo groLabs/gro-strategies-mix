@@ -45,3 +45,8 @@ For any other consequent harvest it:
 - Report back profit or loss to GVault
 - Divest assets from Flux to return back to gVault
 - Invest loose assets back into Flux to farm more yield
+
+### How does strategy estimate it's current assets ?
+- Fetch current fToken balance of the strategy
+- Multiply it by fToken exchange rate stored in same f token contract to get approx amount of USDC/USDT/DAI invested into fToken
+- Use `calc_token_amount` from 3CRV pool to calculate estimate of 3crv token we can obtain by depositing stablecoin amount from previous step
