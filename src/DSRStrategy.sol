@@ -37,7 +37,7 @@ contract DSRStrategy is BaseStrategy {
     /*//////////////////////////////////////////////////////////////
                         Constants
     //////////////////////////////////////////////////////////////*/
-    uint256 public constant CHI_DECIMALS = 10e27;
+    uint256 public constant CHI_DECIMALS = 1e27;
 
     IDSRManager public constant DSR_MANAGER =
         IDSRManager(0x373238337Bfe1146fb49989fc222523f83081dDb);
@@ -59,6 +59,7 @@ contract DSRStrategy is BaseStrategy {
         owner = msg.sender;
         THREE_CRV.approve(address(_gVault), type(uint256).max);
         DAI.approve(address(DSR_MANAGER), type(uint256).max);
+        DAI.approve(address(THREE_POOL), type(uint256).max);
 
         pot = IDSRPot(DSR_MANAGER.pot());
     }
